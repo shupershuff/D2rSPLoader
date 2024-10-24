@@ -638,8 +638,6 @@ Function ImportCSV { #Import Account CSV
 				FormatFunction -Text "Please adjust characters.csv so that the ID numbers against each account are unique.`n" -IsError
 				PressTheAnyKeyToExit
 			}
-			
-			$DesiredColumnOrder = @("ID","CharacterName","TimeActive") # Update with your desired column order
 			if (-not ($Script:AccountOptionsCSV | Get-Member -Name "TimeActive" -MemberType NoteProperty -ErrorAction SilentlyContinue)){#For update 1.8.0. If TimeActive column doesn't exist, add it
 				# Column does not exist, so add it to the CSV data
 				$Script:AccountOptionsCSV | ForEach-Object {
@@ -1033,9 +1031,9 @@ Function SetWindowLocations {# Move windows to preferred location/layout
 	$handle = (Get-Process -Id $Id).MainWindowHandle
     # Constants for SetWindowPos
     $HWND_TOPMOST = [IntPtr]::Zero # Change this to [IntPtr]::Zero to avoid topmost if you don't want it to be
-    $SWP_NOMOVE = 0x0002
-    $SWP_NOSIZE = 0x0001
-    $SWP_SHOWWINDOW = 0x0040
+	#$SWP_NOMOVE = 0x0002
+	#$SWP_NOSIZE = 0x0001
+	$SWP_SHOWWINDOW = 0x0040
 	$SWP_NOREDRAW = 0x0008
 
     # Restore the window (if minimized)
