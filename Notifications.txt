@@ -1,0 +1,5 @@
+{
+    "Notification":  "No Notifications have been sent yet :)",
+    "PublishDate":  "2024.08.27 16:00:00",
+    "ExpiryDate":  "2024.08.28 12:00:00"
+}
