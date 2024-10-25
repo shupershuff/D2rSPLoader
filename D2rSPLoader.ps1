@@ -1405,7 +1405,7 @@ Function CheckActiveAccounts {#Note: only works for accounts loaded by the scrip
 		$Script:ActiveIDs = $Null
 		$D2rRunning = $false
 		$Script:ActiveIDs = New-Object -TypeName System.Collections.ArrayList
-		$Script:ActiveIDs = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "- Diablo II: Resurrected"} | Select-Object MainWindowTitle).mainwindowtitle.substring(0,2).trim() #find all diablo 2 game windows and pull the account ID from the title
+		$Script:ActiveIDs = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "- Diablo II: Resurrected \(SP\)"} | Select-Object MainWindowTitle).mainwindowtitle.substring(0,2).trim() #find all diablo 2 game windows and pull the account ID from the title
 		$Script:D2rRunning = $true
 		Write-Verbose "Running Instances."
 	}
@@ -1421,7 +1421,7 @@ Function CheckActiveAccounts {#Note: only works for accounts loaded by the scrip
 			$ActiveAccount = New-Object -TypeName psobject
 			$ActiveAccount | Add-Member -MemberType NoteProperty -Name ID -Value $ActiveAccountDetails.ID
 			$ActiveAccount | Add-Member -MemberType NoteProperty -Name AccountName -Value $ActiveAccountDetails.CharacterName
-			$InstanceProcessID = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "$($ActiveAccountDetails.ID) - $($ActiveAccountDetails.CharacterName)"} | Select-Object ID).id
+			$InstanceProcessID = (Get-Process | Where-Object {$_.processname -eq "D2r" -and ($_.MainWindowTitle -match "$($ActiveAccountDetails.ID) - $($ActiveAccountDetails.CharacterName)" -and $_.MainWindowTitle -match "- Diablo II: Resurrected \(SP\)")} | Select-Object ID).id
 			write-verbose "  ProcessID for $($ActiveAccountDetails.ID) - $($ActiveAccountDetails.CharacterName) is $InstanceProcessID"
 			$ActiveAccount | Add-Member -MemberType NoteProperty -Name ProcessID -Value $InstanceProcessID
 			[VOID]$Script:ActiveAccountsList.Add($ActiveAccount)
