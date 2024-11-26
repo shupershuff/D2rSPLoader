@@ -2,11 +2,10 @@
 TBC, making a cutdown version of D2rLoader specifically aimed at tracking time spent on offline characters. Useful for tracking total time spent on Grail :)
 
 Work in progress but plan to enable the following features:
-- Launch in offline mode for those who want to help their mates fill games online but still play single player (uses parameter '-region xxx')
-- Skip Intro video (launch game with mod to set intro video to 0 bytes).
-- Skip In game act videos  (launch game with mod to set all videos to 0 bytes).
-- Start Grail App (of your choosing) if not already running at game launch.
-- Start Run timer app (of your choosing) if not already running at game launch.
+- DONE Launch in offline mode for those who want to help their mates fill games online but still play single player (uses parameter '-region xxx')
+- DONE Skip Game video (launch game with mod to set intro and games Act videos to 0 bytes).
+- DONE Start Grail App (of your choosing) if not already running at game launch.
+- DONE Start Run timer app (of your choosing) if not already running at game launch.
 - Incorporate [Offline Backup](https://github.com/shupershuff/FolderBackup) and [cloud sync'd backup](https://github.com/shupershuff/D2rSinglePlayerBackup).
 - Load/Unload Save game sets (eg if switching between Grail characters and edited test characters)
 - Track time by character by assessing save game files for changes
