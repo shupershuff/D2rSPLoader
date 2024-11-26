@@ -19,7 +19,7 @@ Couldn't write :) in release notes without it adding a new line, some minor issu
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "0.1" #single player edit, adjusted shortcut.
+$CurrentVersion = "0.2" #single player edit, adjusted shortcut.
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -540,6 +540,20 @@ Function ValidationAndSetup {
 		Write-Host " Edit the GamePath variable in the config file.`n" -foregroundcolor red
 		PressTheAnyKeyToExit
 	}
+	#Check Grail app path actually exists and if not throw an error
+	if ((Test-Path -Path $Config.GrailAppExecutablePath) -ne $true){ 
+		Write-Host " Grail app '$(split-path $Config.GrailAppExecutablePath -leaf)' not found." -foregroundcolor red
+		formatfunction -IsError -Text "Couldn't find the Grail application in '$(split-path $Config.GrailAppExecutablePath)'"
+		Write-Host " Double check the grail application path and update config.xml to fix." -foregroundcolor red
+		PressTheAnyKeyToExit
+	}
+	#Check Run Timer app path actually exists and if not throw an error
+	if ((Test-Path -Path $Config.RunTimerAppExecutablePath) -ne $true){ 
+		Write-Host " Run Timer app '$(split-path $Config.RunTimerAppExecutablePath -leaf)' not found." -foregroundcolor red
+		formatfunction -IsError -Text "Couldn't find the Run Timer application in '$(split-path $Config.RunTimerAppExecutablePath)'"
+		Write-Host " Double check the Run Timer application path and update config.xml to fix." -foregroundcolor red
+		PressTheAnyKeyToExit
+	}
 	# Create Shortcut
 	if ($Config.CreateDesktopShortcut -eq $True){
 		$DesktopPath = [Environment]::GetFolderPath("Desktop")
@@ -603,6 +617,102 @@ Function ValidationAndSetup {
 			Write-Host "`n $X[38;2;69;155;245;4mhttps://learn.microsoft.com/sysinternals/downloads/handle$X[0m"
 			Write-Host " $X[38;2;69;155;245;4mhttps://download.sysinternals.com/files/Handle.zip$X[0m`n"
 			PressTheAnyKeyToExit
+		}
+	}
+	#Diable Videos feature
+	if ($Config.DisableVideos -eq $True){
+		if ($Config.CustomLaunchArguments -match "-mod"){
+			$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
+			if ($Config.CustomLaunchArguments -match $pattern){
+				$ModName = $matches[1]	
+				$ModPath = $Config.GamePath + "\mods\$ModName\$ModName.mpq\data\hd\global\video"
+				if (-not (Test-Path "$ModPath\blizzardlogos.webm")){
+					Write-Host " You've opted to disable game videos however a mod is already being used." -ForegroundColor Yellow
+					Do {
+						Write-Host " Would you like to try update the current mod ($ModName) to disable videos? $X[38;2;255;165;000;22mY$X[0m/$X[38;2;255;165;000;22mN$X[0m: " -nonewline
+						$ShouldUpdate = ReadKey
+						if ($ShouldUpdate -eq "y" -or $ShouldUpdate -eq "n"){
+							$UpdateResponseValid = $True
+						}
+						Else {
+							Write-Host "`n Invalid response. Choose $X[38;2;255;165;000;22mY$X[0m $X[38;2;231;072;086;22mor$X[0m $X[38;2;255;165;000;22mN$X[0m.`n" -ForegroundColor red
+						}
+					} Until ($UpdateResponseValid -eq $True)
+					if ($ShouldUpdate -eq "y"){	
+						if (-not (Test-Path "$ModPath\act2")){
+							Write-Host " Creating needed folders for disabling D2r videos..."
+							New-Item -ItemType Directory -Path $ModPath -ErrorAction stop | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction stop | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction stop | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction stop | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction stop | Out-Null
+							Write-Host " Created folder: $ModPath" -ForegroundColor Green
+							start-sleep -milliseconds 213
+						}
+						New-Item -ItemType File -Path "$ModPath\blizzardlogos.webm"
+						New-Item -ItemType File -Path "$ModPath\d2intro.webm"
+						New-Item -ItemType File -Path "$ModPath\logoanim.webm"
+						New-Item -ItemType File -Path "$ModPath\act2\act02start.webm"
+						New-Item -ItemType File -Path "$ModPath\act3\act03start.webm"
+						New-Item -ItemType File -Path "$ModPath\act4\act04start.webm"
+						New-Item -ItemType File -Path "$ModPath\act4\act04end.webm"
+						New-Item -ItemType File -Path "$ModPath\act5\d2x_out.webm"
+						Write-Host " Created dummy D2r videos." -ForegroundColor Green
+						start-sleep -milliseconds 222
+					}
+					else {
+						Write-Host " D2r videos have not been disabled." -foregroundcolor red.
+						start-sleep -milliseconds 222
+					}
+				}
+			}
+		}
+		elseif ($Config.CustomLaunchArguments -match "-direct -txt"){ #if user has extracted files.
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\blizzardlogos.webm" -NewName "blizzardlogos.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\blizzardlogos.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\d2intro.webm" -NewName "d2intro.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\d2intro.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\logoanim.webm" -NewName "logoanim.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\logoanim.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act2\act02start.webm" -NewName "act02start.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act2\act02start.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act3\act03start.webm" -NewName "act03start.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act3\act03start.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04start.webm" -NewName "act04start.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04start.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04end.webm" -NewName "act04end.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04end.webm"
+				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act5\d2x_out.webm" -NewName "d2x_out.webm.backup"
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act5\d2x_out.webm"
+		}
+		else { #if user has not extracted files, launch with mod
+			$ModPath = $Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\data\hd\global\video"
+			if (-not (Test-Path "$ModPath")){
+				Write-Host " Creating needed folders for disabling D2r videos..."
+				New-Item -ItemType Directory -Path $ModPath -ErrorAction stop | Out-Null
+				New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction stop | Out-Null
+				New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction stop | Out-Null
+				New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction stop | Out-Null
+				New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction stop | Out-Null
+				start-sleep -milliseconds 213
+			}
+			New-Item -ItemType File -Path "$ModPath\blizzardlogos.webm"
+			New-Item -ItemType File -Path "$ModPath\d2intro.webm"
+			New-Item -ItemType File -Path "$ModPath\logoanim.webm"
+			New-Item -ItemType File -Path "$ModPath\act2\act02start.webm"
+			New-Item -ItemType File -Path "$ModPath\act3\act03start.webm"
+			New-Item -ItemType File -Path "$ModPath\act4\act04start.webm"
+			New-Item -ItemType File -Path "$ModPath\act4\act04end.webm"
+			New-Item -ItemType File -Path "$ModPath\act5\d2x_out.webm"
+			$data = @{
+				name     = "DisableVideos"
+				savepath = "../"
+			}
+			$json = $data | ConvertTo-Json -Depth 1 -Compress # Convert the hashtable to JSON
+			Set-Content -Path ($Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\modinfo.json") -Value $json -Encoding UTF8 # Write the JSON content to the file
+			Write-Host " Created dummy D2r videos." -ForegroundColor Green
+			start-sleep -milliseconds 222
+			$Script:StartWithDisableVideosMod = $True
 		}
 	}
 }
@@ -1850,6 +1960,9 @@ Function Processing {
 		}
 	}
 	if ($SettingsChoice -ne "c" -and $SettingsChoice -ne "Esc"){
+		if ($Script:StartWithDisableVideosMod -eq $True){
+			$arguments += " -mod DisableVideos -txt"
+		}
 		#Start Game
 		KillHandle | out-null
 		$process = Start-Process "$Gamepath\D2R.exe" -ArgumentList "$arguments" -PassThru 
@@ -1910,9 +2023,28 @@ Function Processing {
 			FormatFunction -IsSuccess -text "Moved game window to preferred location."
 			Start-Sleep -milliseconds 750
 		}
+		if ($Config.GrailAppExecutablePath -ne ""){
+			$GrailProcessName = (split-path $Config.GrailAppExecutablePath -leaf).trim(".exe") #check if app is already running, if so we will skip
+			if ($null -eq (Get-Process | Where-Object {$_.processname -eq $GrailProcessName})){	
+				Start-Job -ScriptBlock {
+					param($exePath)
+					Start-Process -FilePath $exePath #-WindowStyle Hidden
+				} -ArgumentList $Config.GrailAppExecutablePath | Out-Null
+			}
+		}
+		if ($Config.RunTimerAppExecutablePath -ne ""){
+			$TimerProcessName = (split-path $Config.RunTimerAppExecutablePath -leaf).trim(".exe") #check if app is already running, if so we will skip
+			if ($null -eq (Get-Process | Where-Object {$_.processname -eq $TimerProcessName})){	
+				Start-Job -ScriptBlock {
+					param($exePath)
+					Start-Process -FilePath $exePath #-WindowStyle Hidden
+				} -ArgumentList $Config.RunTimerAppExecutablePath | Out-Null
+			}
+		}
 		Write-Host "`nGood luck hero..." -foregroundcolor magenta
 		Start-Sleep -milliseconds 1000
 		$Script:ScriptHasBeenRun = $true
+		Remove-Job *
 	}
 }
 InitialiseCurrentStats
