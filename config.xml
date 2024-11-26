@@ -1,11 +1,17 @@
-<!--D2rSPLoader Config-->
+<!--D2Loader Config-->
 <D2loaderconfig>
 	<!--Default Gamepath. The below is the default install path, change this if you've installed somewhere different.-->
-	<GamePath>C:\Program Files (x86)\Diablo II Resurrected</GamePath>
+	<GamePath>C:\Program Files (x86)\Battle.net\Games\Diablo II Resurrected</GamePath>
+	
+	<!--If you want to launch a grail app when D2r starts, enter the path to the executable eg C:\Program Files\Diablo 2 Holy Grail\Diablo 2 Holy Grail.exe-->
+	<GrailAppExecutablePath></GrailAppExecutablePath>
+	
+	<!--If you want to launch a RunTimer app when D2r starts, enter the path to the executable eg C:\Program Files\Oskros\mf_timer.exe-->
+	<RunTimerAppExecutablePath></RunTimerAppExecutablePath>
 	
 	<!--Any custom launch arguments for the game (eg if you want to use mods). May not be compatible with some features in the script.-->
 	<CustomLaunchArguments></CustomLaunchArguments>
-	
+
 	<!--Script will recreate desktop shortcut each time it's run (updates the shortcut if you move the script location). If you don't want this, disable here by setting to $false.-->
 	<CreateDesktopShortcut>True</CreateDesktopShortcut>
 
@@ -17,12 +23,15 @@
 
 	<!--Make sure game always starts in Windowed mode rather than full screen. Note that this seems to cause issues remembering your last window size. Recommend leaving false-->
 	<ForceWindowedMode>False</ForceWindowedMode>
+	
+	<!--Disable Intro videos and videos in between each act.-->
+	<DisableVideos>True</DisableVideos>
 
 	<!--This enables the script to match a config file (settings.json) to the account you are launching. 
 	Eg if using account 1, this is achieved by overwriting settings.json with settings1.json.
 	Due to this, if enabled, settings1.json,settins2.json etc will not be updated if you update your game settings.
 	As such	you will need to manually update your settings.json config file, see readme for more details. -->
-	<SettingSwitcherEnabled>False</SettingSwitcherEnabled>
+	<SettingSwitcherEnabled>True</SettingSwitcherEnabled>
 
 	<!--Can be used standalone or in conjunction with the standard setting switcher above.
 	This enables the menu option to enter 's' and manually pick between settings config files. Use this if you want to select Awesome or Poo graphics settings for an account.
