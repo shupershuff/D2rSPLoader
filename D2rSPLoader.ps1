@@ -19,7 +19,7 @@ Couldn't write :) in release notes without it adding a new line, some minor issu
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "0.2" #single player edit, adjusted shortcut.
+$CurrentVersion = "0.3" #single player edit, adjusted shortcut.
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -541,18 +541,22 @@ Function ValidationAndSetup {
 		PressTheAnyKeyToExit
 	}
 	#Check Grail app path actually exists and if not throw an error
-	if ((Test-Path -Path $Config.GrailAppExecutablePath) -ne $true){ 
-		Write-Host " Grail app '$(split-path $Config.GrailAppExecutablePath -leaf)' not found." -foregroundcolor red
-		formatfunction -IsError -Text "Couldn't find the Grail application in '$(split-path $Config.GrailAppExecutablePath)'"
-		Write-Host " Double check the grail application path and update config.xml to fix." -foregroundcolor red
-		PressTheAnyKeyToExit
-	}
+	if ("" -ne $Config.GrailAppExecutablePath){
+		if ((Test-Path -Path $Config.GrailAppExecutablePath) -ne $true){ 
+			Write-Host " Grail app '$(split-path $Config.GrailAppExecutablePath -leaf)' not found." -foregroundcolor red
+			formatfunction -IsError -Text "Couldn't find the Grail application in '$(split-path $Config.GrailAppExecutablePath)'"
+			Write-Host " Double check the grail application path and update config.xml to fix." -foregroundcolor red
+			PressTheAnyKeyToExit
+		}
+}
 	#Check Run Timer app path actually exists and if not throw an error
-	if ((Test-Path -Path $Config.RunTimerAppExecutablePath) -ne $true){ 
-		Write-Host " Run Timer app '$(split-path $Config.RunTimerAppExecutablePath -leaf)' not found." -foregroundcolor red
-		formatfunction -IsError -Text "Couldn't find the Run Timer application in '$(split-path $Config.RunTimerAppExecutablePath)'"
-		Write-Host " Double check the Run Timer application path and update config.xml to fix." -foregroundcolor red
-		PressTheAnyKeyToExit
+	if ("" -ne $Config.RunTimerAppExecutablePath){
+		if ((Test-Path -Path $Config.RunTimerAppExecutablePath) -ne $true){ 
+			Write-Host " Run Timer app '$(split-path $Config.RunTimerAppExecutablePath -leaf)' not found." -foregroundcolor red
+			formatfunction -IsError -Text "Couldn't find the Run Timer application in '$(split-path $Config.RunTimerAppExecutablePath)'"
+			Write-Host " Double check the Run Timer application path and update config.xml to fix." -foregroundcolor red
+			PressTheAnyKeyToExit
+		}
 	}
 	# Create Shortcut
 	if ($Config.CreateDesktopShortcut -eq $True){
@@ -621,6 +625,17 @@ Function ValidationAndSetup {
 	}
 	#Diable Videos feature
 	if ($Config.DisableVideos -eq $True){
+		$VideoFiles = @(
+			"blizzardlogos.webm",
+			"d2intro.webm",
+			"logoanim.webm",
+			"d2x_intro.webm",
+			"act2\act02start.webm",
+			"act3\act03start.webm",
+			"act4\act04start.webm",
+			"act4\act04end.webm",
+			"act5\d2x_out.webm"
+		)
 		if ($Config.CustomLaunchArguments -match "-mod"){
 			$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
 			if ($Config.CustomLaunchArguments -match $pattern){
@@ -629,10 +644,11 @@ Function ValidationAndSetup {
 				if (-not (Test-Path "$ModPath\blizzardlogos.webm")){
 					Write-Host " You've opted to disable game videos however a mod is already being used." -ForegroundColor Yellow
 					Do {
-						Write-Host " Would you like to try update the current mod ($ModName) to disable videos? $X[38;2;255;165;000;22mY$X[0m/$X[38;2;255;165;000;22mN$X[0m: " -nonewline
+						Write-Host " Attempt to update the current mod ($ModName) to disable videos? $X[38;2;255;165;000;22mY$X[0m/$X[38;2;255;165;000;22mN$X[0m: " -nonewline
 						$ShouldUpdate = ReadKey
 						if ($ShouldUpdate -eq "y" -or $ShouldUpdate -eq "n"){
 							$UpdateResponseValid = $True
+							write-host
 						}
 						Else {
 							Write-Host "`n Invalid response. Choose $X[38;2;255;165;000;22mY$X[0m $X[38;2;231;072;086;22mor$X[0m $X[38;2;255;165;000;22mN$X[0m.`n" -ForegroundColor red
@@ -640,50 +656,36 @@ Function ValidationAndSetup {
 					} Until ($UpdateResponseValid -eq $True)
 					if ($ShouldUpdate -eq "y"){	
 						if (-not (Test-Path "$ModPath\act2")){
-							Write-Host " Creating needed folders for disabling D2r videos..."
+							Write-Debug " Creating folders required for disabling D2r videos..."
 							New-Item -ItemType Directory -Path $ModPath -ErrorAction stop | Out-Null
 							New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction stop | Out-Null
 							New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction stop | Out-Null
 							New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction stop | Out-Null
 							New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction stop | Out-Null
-							Write-Host " Created folder: $ModPath" -ForegroundColor Green
+							Write-Debug " Created folder: $ModPath"
 							start-sleep -milliseconds 213
 						}
-						New-Item -ItemType File -Path "$ModPath\blizzardlogos.webm"
-						New-Item -ItemType File -Path "$ModPath\d2intro.webm"
-						New-Item -ItemType File -Path "$ModPath\logoanim.webm"
-						New-Item -ItemType File -Path "$ModPath\act2\act02start.webm"
-						New-Item -ItemType File -Path "$ModPath\act3\act03start.webm"
-						New-Item -ItemType File -Path "$ModPath\act4\act04start.webm"
-						New-Item -ItemType File -Path "$ModPath\act4\act04end.webm"
-						New-Item -ItemType File -Path "$ModPath\act5\d2x_out.webm"
-						Write-Host " Created dummy D2r videos." -ForegroundColor Green
+						foreach ($File in $VideoFiles){
+							New-Item -ItemType File -Path "$ModPath\$File" | Out-Null
+						}
+						Write-Debug " Created dummy D2r videos."
 						start-sleep -milliseconds 222
 					}
 					else {
-						Write-Host " D2r videos have not been disabled." -foregroundcolor red.
-						start-sleep -milliseconds 222
+						Write-Host " D2r videos have not been disabled.`n" -foregroundcolor red
+						start-sleep -milliseconds 256
 					}
 				}
 			}
 		}
 		elseif ($Config.CustomLaunchArguments -match "-direct -txt"){ #if user has extracted files.
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\blizzardlogos.webm" -NewName "blizzardlogos.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\blizzardlogos.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\d2intro.webm" -NewName "d2intro.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\d2intro.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\logoanim.webm" -NewName "logoanim.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\logoanim.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act2\act02start.webm" -NewName "act02start.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act2\act02start.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act3\act03start.webm" -NewName "act03start.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act3\act03start.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04start.webm" -NewName "act04start.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04start.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04end.webm" -NewName "act04end.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act4\act04end.webm"
-				Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\act5\d2x_out.webm" -NewName "d2x_out.webm.backup"
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\act5\d2x_out.webm"
+			foreach ($File in $VideoFiles){
+				if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -gt 0){ #check if file is larger than 0 bytes and if so backup original file and replace with 0 byte file.
+					$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+					Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File" -NewName "$FileName.backup" | Out-Null
+					New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\$File" | Out-Null
+				}
+			}
 		}
 		else { #if user has not extracted files, launch with mod
 			$ModPath = $Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\data\hd\global\video"
@@ -695,23 +697,19 @@ Function ValidationAndSetup {
 				New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction stop | Out-Null
 				New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction stop | Out-Null
 				start-sleep -milliseconds 213
+				foreach ($File in $VideoFiles){
+					$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+					New-Item -ItemType File -Path "$ModPath\$File" | Out-Null
+				}
+				$data = @{
+					name     = "DisableVideos"
+					savepath = "../"
+				}
+				$json = $data | ConvertTo-Json -Depth 1 -Compress # Convert the hashtable to JSON
+				Set-Content -Path ($Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\modinfo.json") -Value $json -Encoding UTF8 # Write the JSON content to the file
+				Write-Host " Created dummy D2r videos." -ForegroundColor Green
+				start-sleep -milliseconds 222
 			}
-			New-Item -ItemType File -Path "$ModPath\blizzardlogos.webm"
-			New-Item -ItemType File -Path "$ModPath\d2intro.webm"
-			New-Item -ItemType File -Path "$ModPath\logoanim.webm"
-			New-Item -ItemType File -Path "$ModPath\act2\act02start.webm"
-			New-Item -ItemType File -Path "$ModPath\act3\act03start.webm"
-			New-Item -ItemType File -Path "$ModPath\act4\act04start.webm"
-			New-Item -ItemType File -Path "$ModPath\act4\act04end.webm"
-			New-Item -ItemType File -Path "$ModPath\act5\d2x_out.webm"
-			$data = @{
-				name     = "DisableVideos"
-				savepath = "../"
-			}
-			$json = $data | ConvertTo-Json -Depth 1 -Compress # Convert the hashtable to JSON
-			Set-Content -Path ($Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\modinfo.json") -Value $json -Encoding UTF8 # Write the JSON content to the file
-			Write-Host " Created dummy D2r videos." -ForegroundColor Green
-			start-sleep -milliseconds 222
 			$Script:StartWithDisableVideosMod = $True
 		}
 	}
@@ -1164,12 +1162,75 @@ Function Options {
 	Write-Host "`n This screen allows you to change script config options."
 	Write-Host " Note that you can also change these settings (and more) in config.xml."
 	Write-Host " Options you can change/toggle below:`n"
-	$OptionList = "1","2","3","4","5","6","7","8"
+	$CharacterSavePath = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
+	if ($Config.CustomLaunchArguments -match "-mod"){
+		$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
+		if ($Config.CustomLaunchArguments -match $pattern){
+			$ModName = $matches[1]
+			try {
+				Write-Verbose "Trying to get Mod Content..."
+				try {
+					$Modinfo = ((Get-Content "$($Config.GamePath)\Mods\$ModName\$ModName.mpq\Modinfo.json" -ErrorAction silentlycontinue | ConvertFrom-Json).savepath).Trim("/")
+				}
+				catch {
+					try {
+						$Modinfo = ((Get-Content "$($Config.GamePath)\Mods\$ModName\Modinfo.json" -ErrorAction stop -ErrorVariable ModReadError | ConvertFrom-Json).savepath).Trim("/")
+					}
+					catch {
+						FormatFunction -Text "Using standard character save path. Couldn't find Modinfo.json in '$($Config.GamePath)\Mods\$ModName\$ModName.mpq'" -IsWarning
+						start-sleep -milliseconds 1500
+					}
+				}
+				If ($Null -eq $Modinfo){
+					Write-Verbose " No Custom Save Path Specified for this mod."
+				}
+				ElseIf ($Modinfo -ne "../"){
+					$CharacterSavePath += "mods\$Modinfo\"
+					if (-not (Test-Path $CharacterSavePath)){
+						Write-Host " Mod Save Folder doesn't exist yet. Creating folder..."
+						New-Item -ItemType Directory -Path $CharacterSavePath -ErrorAction stop | Out-Null
+						Write-Host " Created folder: $CharacterSavePath" -ForegroundColor Green
+					}
+					Write-Host " Mod: $ModName detected. Using custom path for character saves." -ForegroundColor Green
+					Write-Verbose " $CharacterSavePath"
+				}
+				Else {
+					Write-Verbose " Mod used but save path is standard."
+				}
+			}
+			Catch {
+				Write-Verbose " Mod used but custom save path not specified."
+			}
+		}
+		else {
+			Write-Host " Couldn't detect Mod name. Standard path to be used for character saves." -ForegroundColor Red
+		}
+	}
+	# Get all directories in the specified path, excluding "mods"
+	$D2rDirectories = Get-ChildItem -Path $CharacterSavePath -Directory | Where-Object { $_.Name -ne "mods" -and $_.Name -ne "backup"}
+	$NonEmptyDirectories = @()
+	foreach ($Directory in $D2rDirectories){
+		if ((Get-ChildItem -Path $directory.FullName -File -Filter "*.d2s").Count -eq 0){#Check if there are any folders with no .d2s files. If there is an 'empty' folder, this must be the Character set currently in use.
+			$CurrentProfile = $directory.Name
+		}
+		else {
+			$NonEmptyDirectories += $Directory
+		}
+	}
+	if ($Null -eq $CurrentProfile){
+			$CurrentProfile = "Main Profile" #If no empty folders
+			if (-not (Test-Path "$CharacterSavePath\$CurrentProfile")){
+				New-Item -ItemType Directory -Path "$CharacterSavePath\$CurrentProfile" -ErrorAction stop | Out-Null
+			}
+	}
 	$XML = Get-Content "$Script:WorkingDirectory\Config.xml"
-	Write-Host "`n  $X[38;2;255;165;000;22m2$X[0m - $X[4mSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.SettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
+	Write-Host "`n  $X[38;2;255;165;000;22m1$X[0m - TBC $X[4mSingle Player Launch Options$X[0m"
+	Write-Host "  $X[38;2;255;165;000;22m2$X[0m - $X[4mSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.SettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
 	Write-Host "  $X[38;2;255;165;000;22m3$X[0m - $X[4mManualSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.ManualSettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
 	Write-Host "  $X[38;2;255;165;000;22m4$X[0m - $X[4mRememberWindowLocations$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.RememberWindowLocations -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
-
+	if ($null -ne $D2rDirectories){
+		Write-Host "  $X[38;2;255;165;000;22m5$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
+	}
 	Write-Host "`n Enter one of the above options to change the setting."
 	Write-Host " Otherwise, press any other key to return to main menu... " -nonewline
 	$Option = readkey
@@ -1268,6 +1329,9 @@ Function Options {
 			Return $False
 		}
 	}
+	If ($Option -eq "1"){ #SinglePlayerLaunch Options to add/remove from custom launch arguments eg seed, nosave, enablerespec, playersX, resetofflinemaps 
+		#todo
+	}
 	If ($Option -eq "2"){ #SettingSwitcherEnabled
 		If ($Script:Config.SettingSwitcherEnabled -eq "False"){
 			$Options = @{"1" = "True"}
@@ -1304,7 +1368,7 @@ Function Options {
 			$Options = @{"1" = "True"}
 			$OptionsSubText = "enable"
 			$DescriptionSubText = "`nOnce enabled, return to this menu and choose the '$X[38;2;255;165;000;22ms$X[0m' option to save coordinates of any open game instances."
-			$CurrentState = "Disabled"
+			$CurrentState = "Disabled"	
 		}
 		Else {
 			$Options = @{"1" = "False";"S" = "PlaceholderValue Only :)"} # SaveWindowLocations function used if user chooses "S"
@@ -1325,6 +1389,50 @@ Function Options {
 		$XMLChanged = OptionSubMenu -ConfigName "RememberWindowLocations" -OptionsList $Options -Current $CurrentState `
 		-Description "For those that have configured the game to launch in windowed mode, this setting is used to make the script move the window locations at launch, so that you never have to rearrange your windows when launching accounts.$DescriptionSubText" `
 		-OptionsText "    Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n$OptionsSubTextAgain"
+	}
+	ElseIf ($Option -eq "5" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
+		$CurrentD2rSaveFiles = Get-ChildItem -Path "$CharacterSavePath" -Filter "*.d2s" -File
+		$OptionsList = @{}
+		For ($iterate = 0; $iterate -lt $NonEmptyDirectories.Count; $iterate ++) {
+			$key = ($iterate + 1).ToString()  # Create keys as "1", "2", etc.
+			$OptionsList[$key] = $NonEmptyDirectories[$iterate].Name
+		}
+		Foreach ($Option in $OptionsList.GetEnumerator() | Sort-Object Key){
+			write-host "    Choose '$X[38;2;255;165;000;22m$($Option.key)$X[0m' to switch to '$($Option.Value)' character set."
+		}
+		do {
+			Write-Host "`n   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
+			if ($OptionsList.count -gt 10){
+				$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27 -TwoDigitAcctSelection $True).tostring()
+			}
+			Else {
+				$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27).tostring()
+			}
+			if ($NewOptionValue -eq "c"){
+				return
+			}
+			if (!$OptionsList.ContainsKey($NewOptionValue)){
+				write-host " Please enter a valid option." -foregroundcolor red
+			}
+		} until ($NewOptionValue -eq "c" -or $OptionsList.ContainsKey($NewOptionValue))
+		do {
+			if ($Null -ne (Get-Process | Where-Object {$_.processname -eq "D2r"})){
+				write-host " D2r is currently open. Please close the game to swap profiles`n" -foregroundcolor red
+				PressTheAnyKey
+				write-host
+			}
+		} until ($Null -eq (Get-Process | Where-Object {$_.processname -eq "D2r"}))
+		foreach ($file in $CurrentD2rSaveFiles){
+			Move-Item -Path $file.FullName -Destination "$CharacterSavePath\$CurrentProfile" | out-null
+			Write-Debug "Moved $($file.Name) to '$CharacterSavePath\$CurrentProfile'"
+		}
+		$ProfileToSwapD2rSaveFiles = Get-ChildItem -Path ("$CharacterSavePath\" + $OptionsList["$NewOptionValue"]) -Filter "*.d2s" -File
+		foreach ($file in $ProfileToSwapD2rSaveFiles){
+			Move-Item -Path $file.FullName -Destination "$CharacterSavePath" | out-null
+			Write-Debug "Moved $($file.Name) to '$CharacterSavePath'"
+		}
+		Write-Host " Swapped character set to $($OptionsList["$NewOptionValue"])`n" -foregroundcolor green
+		start-sleep -milliseconds 333
 	}
 	else {#go to main menu if no valid option was specified.
 		return
