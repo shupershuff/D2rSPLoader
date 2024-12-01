@@ -19,7 +19,7 @@ Couldn't write :) in release notes without it adding a new line, some minor issu
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "0.3" #single player edit, adjusted shortcut.
+$CurrentVersion = "0.4" #single player edit, adjusted shortcut.
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -63,7 +63,7 @@ $Script:AllowedKeyList += @(65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,8
 $Script:MenuOptions = @(65,66,67,68,71,73,74,79,82,83,84,88) #a, b, c, d, g, i, j, o, r, s, t and x. Used to detect singular valid entries where script can have two characters entered.
 $EnterKey = 13
 Function ReadKey([string]$message=$Null,[bool]$NoOutput,[bool]$AllowAllKeys){#used to receive user input
-	$key = $Null
+	$Script:key = $Null
 	$Host.UI.RawUI.FlushInputBuffer()
 	if (![string]::IsNullOrEmpty($message)){
 		Write-Host -NoNewLine $message
@@ -79,7 +79,7 @@ Function ReadKey([string]$message=$Null,[bool]$NoOutput,[bool]$AllowAllKeys){#us
 			}
 			else {
 				if ($key_.KeyDown){
-					$key = $key_
+					$script:key = $key_
 				}
 			}
 		}
@@ -106,7 +106,7 @@ Function ReadKey([string]$message=$Null,[bool]$NoOutput,[bool]$AllowAllKeys){#us
 	)
 }
 Function ReadKeyTimeout([string]$message=$Null, [int]$timeOutSeconds=0, [string]$Default=$Null, [object[]]$AdditionalAllowedKeys = $null, [bool]$TwoDigitAcctSelection = $False){
-	$key = $Null
+	$Script:key = $Null
 	$inputString = ""
 	$Host.UI.RawUI.FlushInputBuffer()
 	if (![string]::IsNullOrEmpty($message)){
@@ -149,7 +149,7 @@ Function ReadKeyTimeout([string]$message=$Null, [int]$timeOutSeconds=0, [string]
 					}
 				}
 				Else {
-					$key = $key_
+					$script:key = $key_
 					$inputString = $key_.Character
 				}
 			}
@@ -354,7 +354,7 @@ Function InitialiseCurrentStats {
 				if ($StatsCSVRecoveryAttempt -lt 1){
 					try {
 						Write-Host " Attempting Autorecovery of stats.csv from backup..." -foregroundcolor red
-						Copy-Item -Path $Script:WorkingDirectory\Stats.backup.csv -Destination $Script:WorkingDirectory\Stats.csv
+						Copy-Item -Path $Script:WorkingDirectory\Stats.backup.csv -Destination $Script:WorkingDirectory\Stats.csv -ErrorAction stop
 						Write-Host " Autorecovery successful!" -foregroundcolor Green
 						$StatsCSVRecoveryAttempt ++
 						PressTheAnyKey
@@ -487,6 +487,9 @@ Function ImportXML { #Import Config XML
 	}
 }
 Function ValidationAndSetup {
+	#
+	#	Note to self, enter in any future additions/removals from config.xml here.
+	#
 	#Perform some validation on config.xml. Helps avoid errors for people who may be on older versions of the script and are updating. Will look to remove all of this in a future update.
 	$Script:Config = ([xml](Get-Content "$Script:WorkingDirectory\Config.xml" -ErrorAction Stop)).D2loaderconfig #import config.xml again for any updates made by the above.
 	#check if there's any missing config.xml options, if so user has out of date config file.
@@ -496,10 +499,9 @@ Function ValidationAndSetup {
 	"ShortcutCustomIconPath"
 	$BooleanConfigs =
 	"ManualSettingSwitcherEnabled",
-	"RememberWindowLocations",
+	"DisableVideos",
 	"CreateDesktopShortcut",
-	"ForceWindowedMode",
-	"SettingSwitcherEnabled"
+	"ForceWindowedMode"
 	$AvailableConfigs = $AvailableConfigs + $BooleanConfigs
 	$ConfigXMLlist = ($Config | Get-Member | Where-Object {$_.membertype -eq "Property" -and $_.name -notlike "#comment"}).name
 	Write-Host
@@ -714,74 +716,50 @@ Function ValidationAndSetup {
 		}
 	}
 }
-Function ImportCSV { #Import Account CSV
+Function ImportCSV { #Import Character CSV
 	do {
 		try {
-			$Script:AccountOptionsCSV = import-csv "$Script:WorkingDirectory\characters.csv" #import all accounts from csv
+			$Script:CharactersCSV = import-csv "$Script:WorkingDirectory\characters.csv" #import all characters from csv
 		}
 		Catch {
-			FormatFunction -text "`ncharacters.csv does not exist. Make sure you create this and populate with accounts first." -IsError
+			FormatFunction -text "`ncharacters.csv does not exist. Make sure you create this file. Redownload from Github if needed." -IsError
 			PressTheAnyKeyToExit
 		}
-		if ($Null -ne $Script:AccountOptionsCSV){
-			#check characters.csv has been updated and doesn't contain the example account.
-			if ($Script:AccountOptionsCSV -match "yourcharactername"){
-				Write-Host "`n You haven't setup characters.csv with your characters." -foregroundcolor red
-				Write-Host " Add your character details to the CSV file and run the script again :)`n" -foregroundcolor red
-				PressTheAnyKeyToExit
+		if ($Null -ne $Script:CharactersCSV){
+			if ($Null -ne ($CharactersCSV | Where-Object {$_.CharacterName -eq ""})){
+				$Script:CharactersCSV = $Script:CharactersCSV | Where-Object {$_.CharacterName -ne ""} # To account for user error, remove any empty lines from characters.csv
 			}
-			if ($Null -ne ($AccountOptionsCSV | Where-Object {$_.id -eq ""})){
-				$Script:AccountOptionsCSV = $Script:AccountOptionsCSV | Where-Object {$_.id -ne ""} # To account for user error, remove any empty lines from characters.csv
-			}
-			ForEach ($Account in $AccountOptionsCSV){
-				if ($Account.CharacterName -eq ""){ # if user doesn't specify a friendly name, use id. Prevents display issues later on.
-					$Account.CharacterName = ("Account " + $Account.id)
-					$Script:AccountOptionsCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation
-				}
-			}
-			$DuplicateIDs = $AccountOptionsCSV | Where-Object {$_.id -ne ""} | Group-Object -Property ID | Where-Object { $_.Count -gt 1 }
-			if ($duplicateIDs.Count -gt 0){
-				$duplicateIDs = ($DuplicateIDs.name | out-string).replace("`r`n",", ").trim(", ") #outputs more meaningful error.
-				Write-Host "`n characters.csv has duplicate IDs: $duplicateIDs" -foregroundcolor red
-				FormatFunction -Text "Please adjust characters.csv so that the ID numbers against each account are unique.`n" -IsError
-				PressTheAnyKeyToExit
-			}
-			if (-not ($Script:AccountOptionsCSV | Get-Member -Name "TimeActive" -MemberType NoteProperty -ErrorAction SilentlyContinue)){#For update 1.8.0. If TimeActive column doesn't exist, add it
-				# Column does not exist, so add it to the CSV data
-				$Script:AccountOptionsCSV | ForEach-Object {
-					$_ | Add-Member -NotePropertyName "TimeActive" -NotePropertyValue $Null
-				}
-				# Export the updated CSV data back to the file
-				$Script:AccountOptionsCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation
-				Write-Host " Added TimeActive column to characters.csv." -foregroundcolor Green
-				PressTheAnyKey
-			}
-			$AccountCSVImportSuccess = $True
+			$CharacterCSVImportSuccess = $True
 		}
-		else {#Error out and exit if there's a problem with the csv.
-			if ($AccountCSVRecoveryAttempt -lt 1){
-				try {
-					Write-Host " Issue with characters.csv. Attempting Autorecovery from backup..." -foregroundcolor red
-					Copy-Item -Path $Script:WorkingDirectory\characters.backup.csv -Destination $Script:WorkingDirectory\characters.csv
-					Write-Host " Autorecovery successful!" -foregroundcolor Green
-					$AccountCSVRecoveryAttempt ++
-					PressTheAnyKey
+		else {
+			if (Test-Path ($Script:WorkingDirectory + "\characters.backup.csv")){ #Figure out if script is being run for first time by checking if characters.backup.csv doesn't exist, if so, don't try perform recovery.
+				if ($CharacterCSVRecoveryAttempt -lt 1){#Error out and exit if there's a problem with the csv.
+					try {
+						Write-Host " Issue with characters.csv. Attempting Autorecovery from backup..." -foregroundcolor red
+						Copy-Item -Path $Script:WorkingDirectory\characters.backup.csv -Destination $Script:WorkingDirectory\characters.csv -erroraction stop
+						Write-Host " Autorecovery successful!" -foregroundcolor Green
+						$CharacterCSVRecoveryAttempt ++
+						PressTheAnyKey
+					}
+					Catch {
+						$CharacterCSVImportSuccess = $False
+					}
 				}
-				Catch {
-					$AccountCSVImportSuccess = $False
+				Else {
+					$CharacterCSVRecoveryAttempt = 2
+				}
+				if ($CharacterCSVImportSuccess -eq $False -or $CharacterCSVRecoveryAttempt -eq 2){
+					Write-Host "`n There's an issue with characters.csv." -foregroundcolor red
+					Write-Host " Please ensure that this is filled out correctly and rerun the script." -foregroundcolor red
+					Write-Host " Alternatively, rebuild CSV from scratch or restore from characters.backup.csv`n" -foregroundcolor red
+					PressTheAnyKeyToExit
 				}
 			}
-			Else {
-				$AccountCSVRecoveryAttempt = 2
-			}
-			if ($AccountCSVImportSuccess -eq $False -or $AccountCSVRecoveryAttempt -eq 2){
-				Write-Host "`n There's an issue with characters.csv." -foregroundcolor red
-				Write-Host " Please ensure that this is filled out correctly and rerun the script." -foregroundcolor red
-				Write-Host " Alternatively, rebuild CSV from scratch or restore from characters.backup.csv`n" -foregroundcolor red
-				PressTheAnyKeyToExit
+			else {
+				$CharacterCSVImportSuccess = $True
 			}
 		}
-	} until ($AccountCSVImportSuccess -eq $True)
+	} until ($CharacterCSVImportSuccess -eq $True)
 	$Script:CurrentStats = import-csv "$Script:WorkingDirectory\Stats.csv"
 	([int]$Script:CurrentStats.TimesLaunched) ++
 	if ($CurrentStats.TotalGameTime -eq ""){
@@ -796,7 +774,9 @@ Function ImportCSV { #Import Account CSV
 	#Make Backup of CSV.
 	 # Added this in as I had BSOD on my PC and noticed that this caused the files to get corrupted.
 	Copy-Item -Path ($Script:WorkingDirectory + "\stats.csv") -Destination ($Script:WorkingDirectory + "\stats.backup.csv")
-	Copy-Item -Path ($Script:WorkingDirectory + "\characters.csv") -Destination ($Script:WorkingDirectory + "\characters.backup.csv")
+	if ($Null -ne $Script:CharactersCSV){#Don't create backup csv if characters file isn't populated yet. prevents issues with first time run or running on a computer that doesnt have D2r char saves yet.
+		Copy-Item -Path ($Script:WorkingDirectory + "\characters.csv") -Destination ($Script:WorkingDirectory + "\characters.backup.csv")
+	}
 }
 Function SetQualityRolls {
 	#Set item quality array for randomizing quote colours. A stupid addition to script but meh.
@@ -1039,130 +1019,21 @@ Function Inventory {#Info screen
 	Write-Host
 	PressTheAnyKey
 }
-Function LoadWindowClass { #Used to get window locations and place them in the same screen locations at launch. Code courtesy of Sir-Wilhelm and Microsoft.
-	try {
-		[void][Window]
-	}
-	catch {
-		Add-Type @"
-		using System;
-		using System.Runtime.InteropServices;
-		public class Window {
-			[DllImport("user32.dll")]
-			[return: MarshalAs(UnmanagedType.Bool)]
-			public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); //get window coordinates
-			[DllImport("user32.dll")]
-			[return: MarshalAs(UnmanagedType.Bool)]
-			public extern static bool MoveWindow(IntPtr handle, int x, int y, int width, int height, bool redraw); //set window coordinates
-			[DllImport("user32.dll")]
-			[return: MarshalAs(UnmanagedType.Bool)]
-			public static extern bool SetForegroundWindow(IntPtr hWnd); //Bring window to front
-            [DllImport("user32.dll")]
-			[return: MarshalAs(UnmanagedType.Bool)]
-			public static extern bool ShowWindow(IntPtr handle, int state); //used in this script to restore minimized window (state 9)
-			
-			// Add SetWindowPos
-            [DllImport("user32.dll", SetLastError = true)]
-            public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-		}
-		public struct RECT {
-			public int Left;        // x position of upper-left corner
-			public int Top;         // y position of upper-left corner
-			public int Right;       // x position of lower-right corner
-			public int Bottom;      // y position of lower-right corner
-		}
-"@	}
-}
-Function SaveWindowLocations {# Get Window Location coordinates and save to characters.csv
-	LoadWindowClass
-	FormatFunction -indents 2 -text "Saving locations of each open account so that they the windows launch in the same place next time. Assumes you've configured the game to launch in windowed mode."
-	CheckActiveAccounts
-	#If Feature is enabled, add 'WindowXCoordinates' and 'WindowYCoordinates' columns to characters.csv with empty values.
-	if (-not ($Script:AccountOptionsCSV | Get-Member -Name "WindowXCoordinates" -MemberType NoteProperty -ErrorAction SilentlyContinue) -or -not ($Script:AccountOptionsCSV | Get-Member -Name "WindowYCoordinates" -MemberType NoteProperty -ErrorAction SilentlyContinue) -or -not ($Script:AccountOptionsCSV | Get-Member -Name "WindowWidth" -MemberType NoteProperty -ErrorAction SilentlyContinue) -or -not ($Script:AccountOptionsCSV | Get-Member -Name "WindowHeight" -MemberType NoteProperty -ErrorAction SilentlyContinue)){
-		# Column does not exist, so add it to the CSV data
-		if (-not ($Script:AccountOptionsCSV | Get-Member -Name "WindowXCoordinates" -MemberType NoteProperty -ErrorAction SilentlyContinue)){
-			$Script:AccountOptionsCSV | ForEach-Object {$_ | Add-Member -NotePropertyName "WindowXCoordinates" -NotePropertyValue $Null}
-		}
-		if (-not ($Script:AccountOptionsCSV | Get-Member -Name "WindowYCoordinates" -MemberType NoteProperty -ErrorAction SilentlyContinue)){
-			$Script:AccountOptionsCSV | ForEach-Object {$_ | Add-Member -NotePropertyName "WindowYCoordinates" -NotePropertyValue $Null}
-		}
-		if (-not ($Script:AccountOptionsCSV | Get-Member -Name "WindowHeight" -MemberType NoteProperty -ErrorAction SilentlyContinue)){
-			$Script:AccountOptionsCSV | ForEach-Object {$_ | Add-Member -NotePropertyName "WindowHeight" -NotePropertyValue $Null}
-		}
-		if (-not ($Script:AccountOptionsCSV | Get-Member -Name "WindowWidth" -MemberType NoteProperty -ErrorAction SilentlyContinue)){
-			$Script:AccountOptionsCSV | ForEach-Object {$_ | Add-Member -NotePropertyName "WindowWidth" -NotePropertyValue $Null}
-		}
-		# Export the updated CSV data back to the file
-		$Script:AccountOptionsCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation
-	}
-	if ($null -eq $Script:ActiveAccountsList){
-		FormatFunction -text "`nThere are no open accounts to save coordinates from.`nTo save Window positions, you need to launch one or more instances first.`n" -indents 2 -IsError
-		PressTheAnyKey
-		Return $False
-	}
-	$NewCSV = ForEach ($Account in $Script:AccountOptionsCSV){
-		if ($account.id -in $Script:ActiveAccountsList.id){
-			$process = Get-Process -Id ($Script:ActiveAccountsList | where-object {$_.id -eq $account.id}).ProcessID
-			$handle = $process.MainWindowHandle
-			Write-Verbose "$($process.ProcessName) `(Id=$($process.Id), Handle=$handle`, Path=$($process.Path))"
-			$rectangle = New-Object RECT
-			[Window]::GetWindowRect($handle, [ref]$rectangle) | Out-Null
-			FormatFunction -indents 2 -text "`nSaved Coordinates for account $($account.id) ($($account.CharacterName))" -IsSuccess
-			Write-Host "     X Position = $($rectangle.Left)" -Foregroundcolor Green
-			Write-Host "     Y Position = $($rectangle.Top)" -Foregroundcolor Green
-			write-Host "     Width = $($rectangle.Right - $rectangle.Left)" -Foregroundcolor Green
-			write-Host "     Height = $($rectangle.Bottom - $rectangle.Top)" -Foregroundcolor Green
-			$Account.WindowXCoordinates = $rectangle.Left
-			$Account.WindowYCoordinates = $rectangle.Top
-			$Account.WindowWidth = $rectangle.Right - $rectangle.Left
-			$Account.WindowHeight = $rectangle.Bottom - $rectangle.Top
-			$Account
-		}
-		Else {#Leave as is.
-			$Account
-			write-Verbose "Account $($account.id) ($($account.CharacterName)) isn't running."
-		}
-	}
-	$NewCSV | Export-CSV "$Script:WorkingDirectory\characters.csv" -NoTypeInformation
-	Write-Host "`n   Updated CSV with window positions." -foregroundcolor green
-	start-sleep -milliseconds 2500
-}
-Function SetWindowLocations {# Move windows to preferred location/layout
-	param(
-		[int]$Id,
-		[int]$X,
-		[int]$Y,
-		[int]$Width,
-		[int]$Height
+Function CheckForModSavePath {
+	param (
+		[switch] $Settings,
+		[switch] $CheckOnly
 	)
-	LoadWindowClass
-	$handle = (Get-Process -Id $Id).MainWindowHandle
-    # Constants for SetWindowPos
-    $HWND_TOPMOST = [IntPtr]::Zero # Change this to [IntPtr]::Zero to avoid topmost if you don't want it to be
-	#$SWP_NOMOVE = 0x0002
-	#$SWP_NOSIZE = 0x0001
-	$SWP_SHOWWINDOW = 0x0040
-	$SWP_NOREDRAW = 0x0008
-
-    # Restore the window (if minimized)
-    [Window]::ShowWindow($handle, 9)
-    Start-Sleep -Milliseconds 10
-
-    # Move the window and set its position
-   # [Window]::SetWindowPos($handle, $HWND_TOPMOST, $X, $Y, $Width, $Height, $SWP_SHOWWINDOW)
-	[Window]::SetWindowPos($handle, $HWND_TOPMOST, $X, $Y, $Width, $Height, $SWP_SHOWWINDOW -bor $SWP_NOREDRAW)
-    Start-Sleep -Milliseconds 10
-
-    # Optionally, bring it to the foreground
-    [Window]::SetForegroundWindow($handle)
-}
-Function Options {
-	ImportXML
-	Clear-Host
-	Write-Host "`n This screen allows you to change script config options."
-	Write-Host " Note that you can also change these settings (and more) in config.xml."
-	Write-Host " Options you can change/toggle below:`n"
-	$CharacterSavePath = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
+	if ($Settings -eq $True){
+		$SettingsOrCharString = "settings"
+		$SettingsOrCharString2 = "settings.json"
+	}
+	else {
+		$SettingsOrCharString = "character"
+		$SettingsOrCharString2 = "character saves"
+	}
+	$Script:CharacterSavePath = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
+	$Script:SettingsProfilePath = $Script:CharacterSavePath
 	if ($Config.CustomLaunchArguments -match "-mod"){
 		$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
 		if ($Config.CustomLaunchArguments -match $pattern){
@@ -1177,7 +1048,8 @@ Function Options {
 						$Modinfo = ((Get-Content "$($Config.GamePath)\Mods\$ModName\Modinfo.json" -ErrorAction stop -ErrorVariable ModReadError | ConvertFrom-Json).savepath).Trim("/")
 					}
 					catch {
-						FormatFunction -Text "Using standard character save path. Couldn't find Modinfo.json in '$($Config.GamePath)\Mods\$ModName\$ModName.mpq'" -IsWarning
+						FormatFunction -Text "Using standard $SettingsOrCharString save path. Couldn't find Modinfo.json in '$($Config.GamePath)\Mods\$ModName\$ModName.mpq'" -IsWarning
+
 						start-sleep -milliseconds 1500
 					}
 				}
@@ -1185,27 +1057,38 @@ Function Options {
 					Write-Verbose " No Custom Save Path Specified for this mod."
 				}
 				ElseIf ($Modinfo -ne "../"){
-					$CharacterSavePath += "mods\$Modinfo\"
-					if (-not (Test-Path $CharacterSavePath)){
-						Write-Host " Mod Save Folder doesn't exist yet. Creating folder..."
-						New-Item -ItemType Directory -Path $CharacterSavePath -ErrorAction stop | Out-Null
-						Write-Host " Created folder: $CharacterSavePath" -ForegroundColor Green
+					$Script:CharacterSavePath += "mods\$Modinfo\"
+					$Script:SettingsProfilePath = $Script:CharacterSavePath
+					if ($CheckOnly -ne $True){
+						if (-not (Test-Path $CharacterSavePath)){
+							Write-Host "  Mod Save Folder doesn't exist yet. Creating folder..."
+							New-Item -ItemType Directory -Path $CharacterSavePath -ErrorAction stop | Out-Null
+							Write-Host "  Created folder: $CharacterSavePath" -ForegroundColor Green
+						}
+						Write-Host "  Mod: '$ModName' detected. Using custom path for $SettingsOrCharString2." -ForegroundColor Green
 					}
-					Write-Host " Mod: $ModName detected. Using custom path for character saves." -ForegroundColor Green
 					Write-Verbose " $CharacterSavePath"
 				}
 				Else {
-					Write-Verbose " Mod used but save path is standard."
+					Write-Verbose "  Mod used but save path is standard."
 				}
 			}
 			Catch {
-				Write-Verbose " Mod used but custom save path not specified."
+				Write-Verbose "  Mod used but custom save path not specified."
 			}
 		}
 		else {
-			Write-Host " Couldn't detect Mod name. Standard path to be used for character saves." -ForegroundColor Red
+			Write-Host "  Couldn't detect Mod name. Standard path to be used for $SettingsOrCharString2." -ForegroundColor Red
 		}
-	}
+	}	
+}
+Function Options {
+	ImportXML
+	Clear-Host
+	Write-Host "`n This screen allows you to change script config options."
+	Write-Host " Note that you can also change these settings (and more) in config.xml."
+	Write-Host " Options you can change/toggle below:`n"
+	CheckForModSavePath -CheckOnly
 	# Get all directories in the specified path, excluding "mods"
 	$D2rDirectories = Get-ChildItem -Path $CharacterSavePath -Directory | Where-Object { $_.Name -ne "mods" -and $_.Name -ne "backup"}
 	$NonEmptyDirectories = @()
@@ -1224,12 +1107,18 @@ Function Options {
 			}
 	}
 	$XML = Get-Content "$Script:WorkingDirectory\Config.xml"
-	Write-Host "`n  $X[38;2;255;165;000;22m1$X[0m - TBC $X[4mSingle Player Launch Options$X[0m"
-	Write-Host "  $X[38;2;255;165;000;22m2$X[0m - $X[4mSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.SettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
-	Write-Host "  $X[38;2;255;165;000;22m3$X[0m - $X[4mManualSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.ManualSettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
-	Write-Host "  $X[38;2;255;165;000;22m4$X[0m - $X[4mRememberWindowLocations$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.RememberWindowLocations -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
+	write-host "`n  ------------------------------------------------------------------------- "
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text "Launch Arguments: (Currently '$X[38;2;255;165;000;22m$(if($Script:Config.CustomLaunchArguments -ne ''){$Script:Config.CustomLaunchArguments}else{'No launch parameters configured'})$X[0m')"
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m1$X[0m - $X[4m-seed - Launch with map seed$X[0m"
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m2$X[0m - $X[4m-enablerespec - Enable Infinite Respecs$X[0m"
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m3$X[0m - $X[4m-playersX - Set default players value on launch$X[0m"
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m4$X[0m - $X[4m-resetofflinemaps - Enable rolling new maps on each new game$X[0m"
+	write-host "  ------------------------------------------------------------------------- "
+	write-host "  Other Options: "
+	Write-Host "   $X[38;2;255;165;000;22m5$X[0m - $X[4mShow/Hide Characters on main screen$X[0m" #Whitelist chars for main screen
+	Write-Host "   $X[38;2;255;165;000;22m6$X[0m - $X[4mManualSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.ManualSettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
 	if ($null -ne $D2rDirectories){
-		Write-Host "  $X[38;2;255;165;000;22m5$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
+		Write-Host "   $X[38;2;255;165;000;22m7$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
 	}
 	Write-Host "`n Enter one of the above options to change the setting."
 	Write-Host " Otherwise, press any other key to return to main menu... " -nonewline
@@ -1247,82 +1136,62 @@ Function Options {
 		$XML = Get-Content "$Script:WorkingDirectory\Config.xml" -Raw
 		FormatFunction -indents 1 -text "Changing setting for $X[4m$($ConfigName)$X[0m (Currently $X[38;2;255;165;000;22m$($Current)$X[0m).`n"
 		FormatFunction -text $Description -indents 1
-		Write-Host;Write-Host $OptionsText
+		Write-Host;
+		FormatFunction -indents 3 $OptionsText
 		do {
 			if ($OptionInteger -eq $True){
 				Write-Host "   Enter a number between $X[38;2;255;165;000;22m1$X[0m and $X[38;2;255;165;000;22m99$X[0m or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
 				$AcceptableOptions = 1..99 # Allow user to enter 1 to 99
 				$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27 -TwoDigitAcctSelection $True).tostring()
-				$NewValue = $NewOptionValue
+				if ($NewOptionValue -notin $AcceptableOptions + "c" + "Esc"){
+					Write-Host "   Invalid Input. Please enter one of the options above.`n" -foregroundcolor red
+				}
+				else {
+					$NewValue = $NewOptionValue
+				}
 			}
 			Else {
 				Write-Host "   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
 				$AcceptableOptions = $OptionsList.keys
 				$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27).tostring()
-				$NewValue = $($OptionsList[$NewOptionValue])
+				if ($NewOptionValue -notin $AcceptableOptions + "c" + "Esc"){
+					Write-Host "   Invalid Input. Please enter one of the options above.`n" -foregroundcolor red
+					$NewValue = $($OptionsList[$NewOptionValue])
+					if ($Option -eq "1"){# if option is for changing seed, we need a sub option to obtain seed number.
+						$customLaunchArguments = $config.SelectSingleNode("//CustomLaunchArguments")
+						$pattern = "-seed \d{1,}" # Matches "-seed " followed by one or more digits
+						if ($customLaunchArguments.InnerText -match $pattern){
+							$newSeedValue = ""
+							$customLaunchArguments.InnerText = $customLaunchArguments.InnerText -replace $pattern, $newSeedValue		
+						}
+						else {
+							do {
+								$SeedNumber = Read-host "Enter the seed you want to use"
+								if ($SeedNumber -eq "" -or $null -eq $SeedNumber -or $SeedNumber -notmatch '^\d+$'){
+									write-host "`n  Invalid Seed. Enter a number.`n" -foregroundcolor red
+								}
+							} until ($SeedNumber -ne "" -and $null -ne $SeedNumber -and $SeedNumber -match '^\d+$')
+							$newSeedValue = "-seed $SeedNumber"
+							$customLaunchArguments.InnerText = $customLaunchArguments.InnerText -replace $pattern, $newSeedValue
+						}
+						$NewValue = $($customLaunchArguments.InnerText)
+					}
+				}
 			}
-			if ($NewOptionValue -notin $AcceptableOptions + "c" + "Esc"){
-				Write-Host "   Invalid Input. Please enter one of the options above.`n" -foregroundcolor red
-			}
+	pause
 		} until ($NewOptionValue -in $AcceptableOptions + "c" + "Esc")
 		if ($NewOptionValue -in $AcceptableOptions){
-			if ($NewOptionValue -ne "s" -and $NewOptionValue -ne "r" -and $NewOptionValue -ne "a"){
-				try {
-					$Pattern = "(<$ConfigName>)([^<]*)(</$ConfigName>)"
-					$ReplaceString = '{0}{1}{2}' -f '${1}', $NewValue, '${3}'
-					$NewXML = [regex]::Replace($Xml, $Pattern, $ReplaceString)
-					$NewXML | Set-Content -Path "$Script:WorkingDirectory\Config.xml"
-					return $True
-				}
-				Catch {
-					Write-Host "`n  Was unable to update config :(" -foregroundcolor red
-					start-sleep -milliseconds 2500
-					return $False
-				}
+			try {
+				$Pattern = "(<$ConfigName>)([^<]*)(</$ConfigName>)"
+				$ReplaceString = '{0}{1}{2}' -f '${1}', $NewValue, '${3}'
+				$NewXML = [regex]::Replace($Xml, $Pattern, $ReplaceString)
+				$NewXML | Set-Content -Path "$Script:WorkingDirectory\Config.xml"
+				return $True
 			}
-			ElseIf ($NewOptionValue -eq "s"){
-				$PositionsRecorded = SaveWindowLocations
-				if ($PositionsRecorded -ne $False){#redundant?
-					return $False
-				}
-			}
-			ElseIf ($NewOptionValue -eq "r"){
-				LoadWindowClass
-				CheckActiveAccounts
-				if ($null -eq $Script:ActiveAccountsList){
-					FormatFunction -text "`nThere are no open games.`nTo reset window positions, you need to launch one or more instances first.`n" -indents 2 -IsWarning
-					PressTheAnyKey
-					Return $False
-				}
-				ForEach ($Account in $Script:AccountOptionsCSV){
-					if ($account.id -in $Script:ActiveAccountsList.id){
-						if ($account.WindowXCoordinates -ne "" -and $account.WindowYCoordinates -ne ""){
-							SetWindowLocations -X $Account.WindowXCoordinates -Y $Account.WindowYCoordinates -Width $Account.WindowWidth -height $Account.WindowHeight -Id ($Script:ActiveAccountsList | where-object {$_.id -eq $account.id}).ProcessID | out-null
-						}
-					}
-				}
-				FormatFunction -indents 2 -text "Moved game windows back to their saved screen coordinates and reset window sizes.`n" -IsSuccess
-				start-sleep -milliseconds 1500
-				Return $False
-			}
-			ElseIf ($NewOptionValue -eq "a"){
-				LoadWindowClass
-				CheckActiveAccounts
-				if ($null -eq $Script:ActiveAccountsList){
-					FormatFunction -text "`nThere are no open games.`nTo set window positions to alternative layout, you need to launch one or more instances first.`n" -indents 2 -IsWarning
-					PressTheAnyKey
-					Return $False
-				}
-				ForEach ($Account in $Script:AltWindowLayoutCoords){
-					if ($account.id -in $Script:ActiveAccountsList.id){
-						if ($account.WindowXCoordinates -ne "" -and $account.WindowYCoordinates -ne ""){
-							SetWindowLocations -X $Account.WindowXCoordinates -Y $Account.WindowYCoordinates -Width $Account.WindowWidth -height $Account.WindowHeight -Id ($Script:ActiveAccountsList | where-object {$_.id -eq $account.id}).ProcessID | out-null
-						}
-					}
-				}
-				FormatFunction -indents 2 -text "Moved game windows to alternative coordinates and window sizes.`n" -IsSuccess
-				start-sleep -milliseconds 1500
-				Return $False
+			Catch {
+				Write-Host "`n  Was unable to update config :(" -foregroundcolor red
+				start-sleep -milliseconds 2500
+				return $False
 			}
 		}
 		else {
@@ -1330,24 +1199,26 @@ Function Options {
 		}
 	}
 	If ($Option -eq "1"){ #SinglePlayerLaunch Options to add/remove from custom launch arguments eg seed, nosave, enablerespec, playersX, resetofflinemaps 
-		#todo
-	}
-	If ($Option -eq "2"){ #SettingSwitcherEnabled
-		If ($Script:Config.SettingSwitcherEnabled -eq "False"){
-			$Options = @{"1" = "True"}
+		If ($Script:Config.CustomLaunchArguments -notmatch "-seed "){
+			$Options = @{"1" = "Placeholder only"}
 			$OptionsSubText = "enable"
 			$CurrentState = "Disabled"
 		}
 		Else {
-			$Options = @{"1" = "False"}
+			$Options = @{"1" = "Placeholder only"}
 			$OptionsSubText = "disable"
 			$CurrentState = "Enabled"
 		}
-		$XMLChanged = OptionSubMenu -ConfigName "SettingSwitcherEnabled" -OptionsList $Options -Current $CurrentState `
-		-Description "This enables the script to automatically switch which settings file to use when launching the game based on the account you're launching.`nA very cool feature!`nPlease see GitHub for instructions on setting this up/editing settings." `
-		-OptionsText "    Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
+
+		$XMLChanged = OptionSubMenu -ConfigName "CustomLaunchArguments" -OptionsList $Options -Current $CurrentState `
+		-Description "Choose to $OptionsSubText launching with a specified map seed for the game." `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText launching with a custom map seed.`n"
+		#-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to launch with a custom map Seed`nChoose '$X[38;2;255;165;000;22m2$X[0m' to enable infinite respecs.`nChoose '$X[38;2;255;165;000;22m3$X[0m' to set playersX on launch.`nChoose '$X[38;2;255;165;000;22m4$X[0m' to generate new maps on joining the game (same behaviour as online)"
 	}
-	ElseIf ($Option -eq "3"){ #ManualSettingSwitcherEnabled
+	If ($Option -eq "5"){ #Whitelist
+		#TODO
+	}
+	ElseIf ($Option -eq "6"){ #ManualSettingSwitcherEnabled
 		If ($Script:Config.ManualSettingSwitcherEnabled -eq "False"){
 			$Options = @{"1" = "True"}
 			$OptionsSubText = "enable"
@@ -1361,44 +1232,17 @@ Function Options {
 		}
 		$XMLChanged = OptionSubMenu -ConfigName "ManualSettingSwitcherEnabled" -OptionsList $Options -Current $CurrentState `
 		-Description "This enables you to manually choose which settings file the game should use launching another game instance.`nFor example if you want to choose to launch with potato graphics or good graphics.`nPlease see GitHub for instructions on how to set this up and how to edit settings." `
-		-OptionsText "    Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
 	}
-	ElseIf ($Option -eq "4"){ #RememberWindowLocations
-		If ($Script:Config.RememberWindowLocations -eq "False"){
-			$Options = @{"1" = "True"}
-			$OptionsSubText = "enable"
-			$DescriptionSubText = "`nOnce enabled, return to this menu and choose the '$X[38;2;255;165;000;22ms$X[0m' option to save coordinates of any open game instances."
-			$CurrentState = "Disabled"	
-		}
-		Else {
-			$Options = @{"1" = "False";"S" = "PlaceholderValue Only :)"} # SaveWindowLocations function used if user chooses "S"
-			$OptionsSubText = "disable"
-			$OptionsSubTextAgain = "    Choose '$X[38;2;255;165;000;22ms$X[0m' to save current window locations and sizes.`n"
-			if ($Script:AccountOptionsCSV | Get-Member -Name "WindowXCoordinates" -MemberType NoteProperty -ErrorAction SilentlyContinue){
-				$OptionsSubTextAgain += "    Choose '$X[38;2;255;165;000;22mr$X[0m' to reset window locations and sizes.`n"
-				$Options += @{"R" = "PlaceholderValue Only :)"}
-				if (Test-Path -Path "$Script:WorkingDirectory\AltLayout.csv"){
-					$Script:AltWindowLayoutCoords = import-csv "$Script:WorkingDirectory\AltLayout.csv"
-					$OptionsSubTextAgain += "    Choose '$X[38;2;255;165;000;22ma$X[0m' to set window locations to alternative layout.`n"
-					$Options += @{"A" = "PlaceholderValue Only :)"}
-				}
-			}
-			$DescriptionSubText = "`nChoosing the '$X[38;2;255;165;000;22ms$X[0m' option will save coordinates (and window sizes) of any open game instances.`nChoosing the '$X[38;2;255;165;000;22mr$X[0m' option will move your windows back to their default placements."
-			$CurrentState = "Enabled"
-		}
-		$XMLChanged = OptionSubMenu -ConfigName "RememberWindowLocations" -OptionsList $Options -Current $CurrentState `
-		-Description "For those that have configured the game to launch in windowed mode, this setting is used to make the script move the window locations at launch, so that you never have to rearrange your windows when launching accounts.$DescriptionSubText" `
-		-OptionsText "    Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n$OptionsSubTextAgain"
-	}
-	ElseIf ($Option -eq "5" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
+	ElseIf ($Option -eq "7" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
 		$CurrentD2rSaveFiles = Get-ChildItem -Path "$CharacterSavePath" -Filter "*.d2s" -File
 		$OptionsList = @{}
 		For ($iterate = 0; $iterate -lt $NonEmptyDirectories.Count; $iterate ++) {
-			$key = ($iterate + 1).ToString()  # Create keys as "1", "2", etc.
-			$OptionsList[$key] = $NonEmptyDirectories[$iterate].Name
+			$Optionkey = ($iterate + 1).ToString()  # Create keys as "1", "2", etc.
+			$OptionsList[$Optionkey] = $NonEmptyDirectories[$iterate].Name
 		}
 		Foreach ($Option in $OptionsList.GetEnumerator() | Sort-Object Key){
-			write-host "    Choose '$X[38;2;255;165;000;22m$($Option.key)$X[0m' to switch to '$($Option.Value)' character set."
+			write-host "   Choose '$X[38;2;255;165;000;22m$($Option.key)$X[0m' to switch to '$($Option.Value)' character set."
 		}
 		do {
 			Write-Host "`n   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
@@ -1440,13 +1284,6 @@ Function Options {
 	if ($XMLChanged -eq $True){
 		Write-Host "   Config Updated!" -foregroundcolor green
 		ImportXML
-		If ($Option -eq "4" -and $Script:Config.RememberWindowLocations -eq $True -and -not ($Script:AccountOptionsCSV | Get-Member -Name "WindowXCoordinates" -MemberType NoteProperty -ErrorAction SilentlyContinue)){#if this is the first time it's been enabled display a setup message
-			Formatfunction -indents 2 -IsWarning -Text "`nYou've enabled RememberWindowsLocations but you still need to set it up. To set this up you need to perform the following steps:"
-			FormatFunction -indents 3 -iswarning -SubsequentLineIndents 3 -text "`n1. Open all of your D2r account instances.`n2. Move the window for each game instance to your preferred layout and size."
-			FormatFunction -indents 3 -iswarning -SubsequentLineIndents 3 -text "3. Come back to this options menu and go into the 'RememberWindowLocations' setting.`n4. Once in this menu, choose the option 's' to save coordinates of any open game instances."
-			FormatFunction -indents 2 -iswarning -text  "`n`nNow when you open these accounts they will open in this screen location each time :)`n"
-			PressTheAnyKey
-		}
 		start-sleep -milliseconds 2500
 	}
 }
@@ -1617,13 +1454,13 @@ Function KillHandle { #Thanks to sir-wilhelm for tidying this up.
 		& $handle64 -c $eventHandle -p $d2pid -y #-nobanner
 	}
 }
-Function CheckActiveAccounts {#Note: only works for accounts loaded by the script
+Function CheckActiveCharacters {#Note: only works for accounts loaded by the script
 	#check if there's any open instances and check the game title window for which account is being used.
 	try {
 		$Script:ActiveIDs = $Null
 		$D2rRunning = $false
 		$Script:ActiveIDs = New-Object -TypeName System.Collections.ArrayList
-		$Script:ActiveIDs = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "- Diablo II: Resurrected \(SP\)"} | Select-Object MainWindowTitle).mainwindowtitle.substring(0,2).trim() #find all diablo 2 game windows and pull the account ID from the title
+		$Script:ActiveIDs = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "Diablo II: Resurrected \(SP\)"} | Select-Object MainWindowTitle).mainwindowtitle.trim()
 		$Script:D2rRunning = $true
 		Write-Verbose "Running Instances."
 	}
@@ -1632,71 +1469,80 @@ Function CheckActiveAccounts {#Note: only works for accounts loaded by the scrip
 		Write-Verbose "No Running Instances."
 		$Script:ActiveIDs = ""
 	}
-	if ($Script:D2rRunning -eq $True){
-		$Script:ActiveAccountsList = New-Object -TypeName System.Collections.ArrayList
-		ForEach ($ActiveID in $ActiveIDs){#Build list of active accounts that we can omit from being selected later
-			$ActiveAccountDetails = $Script:AccountOptionsCSV | where-object {$_.id -eq $ActiveID}
-			$ActiveAccount = New-Object -TypeName psobject
-			$ActiveAccount | Add-Member -MemberType NoteProperty -Name ID -Value $ActiveAccountDetails.ID
-			$ActiveAccount | Add-Member -MemberType NoteProperty -Name AccountName -Value $ActiveAccountDetails.CharacterName
-			$InstanceProcessID = (Get-Process | Where-Object {$_.processname -eq "D2r" -and ($_.MainWindowTitle -match "$($ActiveAccountDetails.ID) - $($ActiveAccountDetails.CharacterName)" -and $_.MainWindowTitle -match "- Diablo II: Resurrected \(SP\)")} | Select-Object ID).id
-			write-verbose "  ProcessID for $($ActiveAccountDetails.ID) - $($ActiveAccountDetails.CharacterName) is $InstanceProcessID"
-			$ActiveAccount | Add-Member -MemberType NoteProperty -Name ProcessID -Value $InstanceProcessID
-			[VOID]$Script:ActiveAccountsList.Add($ActiveAccount)
-		}
-	}
-	else {
-		$Script:ActiveAccountsList = $Null
-	}
-}
-Function DisplayActiveAccounts {
-	Write-Host
-	if ($Script:ActiveAccountsList.id -ne ""){
-		$PlayTimeHeader = "Hours Played   "
-		Write-Host ("  ID   " + $PlayTimeHeader + "Character Name") #Header
-	}
-	else {
-		Write-Host "  ID   Character Name"
-	}
-	ForEach ($AccountOption in ($Script:AccountOptionsCSV | Sort-Object -Property @{ #Try sort by number first (needed for 2 digit ID's), then sort by character.
-		Expression = {
-			$intValue = [int]::TryParse($_.ID, [ref]$null) # Try to convert the value to an integer
-			if ($intValue){# If it's not null then it's a number, so return it as an integer for sorting.
-				[int]$_.ID
-			}
-			else {# If it's not a number, return a character and sort that.
-				[char]$_.ID
-			}
-		}
-	}))
-	{
-		if ($AccountOption.CharacterName.length -gt 28){ #later we ensure that strings longer than 28 chars are cut short so they don't disrupt the display.
-			$AccountOption.CharacterName = $AccountOption.CharacterName.Substring(0, 28)
-		}
-		if ($AccountOption.ID.length -ge 2){#keep table formatting looking lovely if some crazy user has 10+ accounts.
-			$IDIndent = ""
+	if ($Script:D2rRunning -eq $True){ 
+		$CurrentTime = get-date
+		#Game updates save file every 5 min even if idle, see if most recent save file has been modified in last 5min.
+		$RecentFile = Get-ChildItem -Path "$CharacterSavePath" -File -Filter "*.d2s" | Where-Object {($CurrentTime - $_.LastWriteTime).TotalMinutes -le 5} | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+		
+		if ($RecentFile) {
+		Write-Debug " Most recently updated file: $($RecentFile.Name)"
+			$Script:ActiveCharacter = $RecentFile.Name -replace "\.d2s$"
 		}
 		else {
-			$IDIndent = " "
+			Write-Debug "No .d2s files have been updated in the last 5 minutes."
+		}
+	}
+	else {
+		$Script:ActiveCharacter = $Null
+	}
+}
+Function DisplayCharacters {
+	Write-Host
+	$LongestCharNameLength = ($Script:CharactersCSV | where-object {$_.ShowOnDisplayScreen -ne "Hide"}).CharacterName | ForEach-Object { $_.Length } | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum #find out how many batches there are so table can be properly indented.
+	if ($LongestCharNameLength -ge 28){$LongestCharNameLength = 28} #we will limit long display names on the main screen to prevent odd things happening.
+	while ($CharHeaderIndent.length -lt ($LongestCharNameLength -14)){#indent the header for 'Hours Played' based on how long the longest character name is
+		$CharHeaderIndent = $CharHeaderIndent + " "
+	}
+	Write-Host ("    Character Name   " + $CharHeaderIndent + "Hours Played   ") #Header
+	ForEach ($Character in ($Script:CharactersCSV | where-object {$_.ShowOnDisplayScreen -ne "Hide"}|  Sort-Object -Property CharacterName)){
+		if ($Character.CharacterName.length -gt 28){ #later we ensure that strings longer than 28 chars are cut short so they don't disrupt the display.
+			$Character.CharacterName = $Character.CharacterName.Substring(0, 28)
 		}
 		try {
-			$AcctPlayTime = (" " + (($time =([TimeSpan]::Parse($AccountOption.TimeActive))).hours + ($time.days * 24)).tostring() + ":" + ("{0:D2}" -f $time.minutes) + "   ")  # Add hours + (days*24) to show total hours, then show ":" followed by minutes
+			$CharPlayTime = (" " + (($time =([TimeSpan]::Parse($Character.TimeActive))).hours + ($time.days * 24)).tostring() + ":" + ("{0:D2}" -f $time.minutes) + "   ")  # Add hours + (days*24) to show total hours, then show ":" followed by minutes
 		}
-		catch {#if account hasn't been opened yet.
-			$AcctPlayTime = "   0   "
-			Write-Debug "Account not opened yet."
+		catch {#if character hasn't been played yet (with script running).
+			$CharPlayTime = "   0   "
+			Write-Debug "Character not played yet."
 		}
-		if ($AcctPlayTime.length -lt 15){#formatting. Depending on the amount of characters for this variable push it out until it's 15 chars long.
-			while ($AcctPlayTime.length -lt 15){
-				$AcctPlayTime = " " + $AcctPlayTime
+		if ($CharPlayTime.length -lt 14){#formatting. Depending on the amount of characters for this variable push it out until it's 13 chars long.
+			while ($CharPlayTime.length -lt 14){
+				$CharPlayTime = " " + $CharPlayTime
 			}
 		}
-		if ($AccountOption.id -in $Script:ActiveAccountsList.id){ #if account is currently active
-			Write-Host ("  " + $IDIndent + $AccountOption.ID + "   " + $AcctPlayTime  + $AccountOption.CharacterName + " - Account Active.") -foregroundcolor yellow
+		$CharIndent = ""
+		if ($LongestCharNameLength -lt 14){#If longest character labels are shorter than 14 characters (header length), set this variable to the minimum (14) so indenting works properly.
+			$LongestCharNameLength = 14
 		}
-		else {#if account isn't currently active
-			Write-Host ("  " + $IDIndent + $AccountOption.ID + "   " + $AcctPlayTime + $AccountOption.CharacterName) -foregroundcolor green
+		while (($Character.CharacterName.length + $CharIndent.length) -le $LongestCharNameLength){#keep adding indents until character name plus the indents matches the longest character name. Keeps table nice and neat.
+			$CharIndent = $CharIndent + " "
 		}
+		if ($Character.CharacterName -eq $Script:ActiveCharacter){ #if character is currently active
+			Write-Host ("    " + $Character.CharacterName + $CharIndent + "   " + $CharPlayTime + "(Character Active)") -foregroundcolor yellow
+		}
+		else {#if character isn't currently active
+			Write-Host ("    " + $Character.CharacterName + $CharIndent + "   " + $CharPlayTime) -foregroundcolor green
+		}
+	}
+}
+Function GetCharacters {
+	CheckForModSavePath -CheckOnly
+	$D2rCharacters = Get-ChildItem -Path "$CharacterSavePath" -Filter "*.d2s" -File
+	$Script:CharactersCSV = @(Import-Csv -Path "$Script:WorkingDirectory\characters.csv")
+	ForEach ($D2rCharacter in $D2rCharacters){
+		if (($D2rCharacter.name -replace '\.d2s$') -notin $CharactersCSV.charactername){
+			$Char = $D2rCharacter.name -replace '\.d2s$'
+			write-debug " Character $($D2rCharacter.name -replace '\.d2s$') is missing, will add to characters.csv."
+			$NewCharacter = [PSCustomObject]@{
+				CharacterName		= "$($D2rCharacter.name -replace '\.d2s$')"
+				ShowOnDisplayScreen	= "Show"
+				TimeActive			= ""
+			}
+			$Script:CharactersCSV += $NewCharacter
+		}
+	}
+	if ($Null -ne $NewCharacter){
+		$Script:CharactersCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation
 	}
 }
 Function Menu {
@@ -1713,15 +1559,15 @@ Function Menu {
 }
 Function ChooseAccount {
 	do {
-		if ($Script:AccountID -eq "i"){
+		if ($Script:MainMenuOption -eq "i"){
 			Inventory #show stats
-			$Script:AccountID = "r"
+			$Script:MainMenuOption = "r"
 		}
-		if ($Script:AccountID -eq "o"){ #options menu
+		if ($Script:MainMenuOption -eq "o"){ #options menu
 			Options
-			$Script:AccountID = "r"
+			$Script:MainMenuOption = "r"
 		}
-		if ($Script:AccountID -eq "s"){
+		if ($Script:MainMenuOption -eq "s"){
 			if ($Script:AskForSettings -eq $True){
 				Write-Host "  Manual Setting Switcher Disabled." -foregroundcolor Green
 				$Script:AskForSettings = $False
@@ -1731,9 +1577,9 @@ Function ChooseAccount {
 				$Script:AskForSettings = $True
 			}
 			Start-Sleep -milliseconds 1550
-			$Script:AccountID = "r"
+			$Script:MainMenuOption = "r"
 		}
-		if ($Script:AccountID -eq "g"){#silly thing to replicate in game chat gem.
+		if ($Script:MainMenuOption -eq "g"){#silly thing to replicate in game chat gem.
 			$Script:CurrentStats = import-csv "$Script:WorkingDirectory\Stats.csv"
 			if ($Script:GemActivated -ne $True){
 				$GibberingGemstone = get-random -minimum 0 -maximum  4095
@@ -1772,42 +1618,41 @@ Function ChooseAccount {
 				SetQualityRolls
 			}
 			Start-Sleep -milliseconds 850
-			$Script:AccountID = "r"
+			$Script:MainMenuOption = "r"
 		}
-		if ($Script:AccountID -eq "r"){#refresh
+		if ($Script:MainMenuOption -eq "r"){#refresh
 			Clear-Host
 			Notifications -check $True
 			BannerLogo
 			QuoteRoll
 		}
-		CheckActiveAccounts
-		DisplayActiveAccounts
+		GetCharacters
+		CheckActiveCharacters
+		DisplayCharacters
 		$OpenD2LoaderInstances = Get-WmiObject -Class Win32_Process | Where-Object { $_.name -eq "powershell.exe" -and $_.commandline -match $Script:ScriptFileName} | Select-Object name,processid,creationdate | Sort-Object creationdate -descending
 		if ($OpenD2LoaderInstances.length -gt 1){#If there's more than 1 D2loader.ps1 script open, close until there's only 1 open to prevent the time played accumulating too quickly.
 			ForEach ($Process in $OpenD2LoaderInstances[1..($OpenD2LoaderInstances.count -1)]){
 				Stop-Process -id $Process.processid -force #Closes oldest running d2loader script
 			}
 		}
-		if ($Script:ActiveAccountsList.id.length -ne 0){#if there are active accounts open add to total script time
-			#Add time for each account that's open
-			$Script:AccountOptionsCSV = import-csv "$Script:WorkingDirectory\characters.csv"
+		if ($Script:ActiveCharacter){#if there is an active character, add to total script time
+			#Add time against the character that's being played
+			$Script:CharactersCSV = import-csv "$Script:WorkingDirectory\characters.csv"
 			$AdditionalTimeSpan = New-TimeSpan -Start $Script:StartTime -End (Get-Date) #work out elapsed time to add to characters.csv
-			ForEach ($AccountID in $Script:ActiveAccountsList.id |Sort-Object){ #$Script:ActiveAccountsList.id
-				$AccountToUpdate = $Script:AccountOptionsCSV | Where-Object {$_.ID -eq $accountID}
-				if ($AccountToUpdate){
-					try {#get current time from csv and add to it
-						$AccountToUpdate.TimeActive = [TimeSpan]::Parse($AccountToUpdate.TimeActive) + $AdditionalTimeSpan
-					}
-					Catch {#if CSV hasn't been populated with a time yet.
-						$AccountToUpdate.TimeActive = $AdditionalTimeSpan
-					}
+			$CharacterToUpdate = $Script:CharactersCSV | Where-Object {$_.CharacterName -eq $Script:ActiveCharacter}
+			if ($CharacterToUpdate){
+				try {#get current time from csv and add to it
+					$CharacterToUpdate.TimeActive = [TimeSpan]::Parse($CharacterToUpdate.TimeActive) + $AdditionalTimeSpan
 				}
-				try {
-					$Script:AccountOptionsCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation #update characters.csv with the new time played.
+				Catch {#if CSV hasn't been populated with a time yet.
+					$CharacterToUpdate.TimeActive = $AdditionalTimeSpan
 				}
-				Catch {
-					$WriteAcctCSVError = $True
-				}
+			}
+			try {
+				$Script:CharactersCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation #update characters.csv with the new time played.
+			}
+			Catch {
+				$WriteAcctCSVError = $True
 			}
 			$Script:SessionTimer = $Script:SessionTimer + $AdditionalTimeSpan #track current session time but only if a game is running
 			if ($WriteAcctCSVError -eq $true){
@@ -1834,72 +1679,45 @@ Function ChooseAccount {
 				start-sleep -milliseconds 1500
 			}
 		}
-		$Script:StartTime = Get-Date #restart timer for session time and account time.
-		$Script:AcceptableValues = New-Object -TypeName System.Collections.ArrayList
-		$Script:TwoDigitIDsUsed = $False
-		ForEach ($AccountOption in $Script:AccountOptionsCSV){
-			if ($AccountOption.id -notin $Script:ActiveAccountsList.id){
-				$Script:AcceptableValues = $AcceptableValues + ($AccountOption.id) #+ "x"
-				if ($AccountOption.id.length -eq 2){
-					$Script:TwoDigitIDsUsed = $True
-				}
-			}
-		}
-		$accountoptions = ($Script:AcceptableValues -join  ", ").trim()
-		if ($Script:MovedWindowLocations -ge 1){ # Tidy up any old jobs created for moving windows.
-			Get-Job | Where-Object { $Script:JobIDs -contains $_.Id -and $_.state -ne "Running"} | Remove-Job -Force
-			$Script:JobIDs = @()
-			$Script:MovedWindowLocations = 0
-		}
+		$Script:StartTime = Get-Date #restart timer for session time and character time.
 		do {
 			Write-Host
-			if ($accountoptions.length -gt 0){#if there are unopened account options available
-				if ($accountoptions.length -le 24){ #if so many accounts are available to be used that it's too long and impractical to display all the individual options.
-					Write-Host ("  Select which account to sign into: " + "$X[38;2;255;165;000;22m$accountoptions$X[0m")
-					Write-Host "  Alternatively choose from the following menu options:"
-				}
-				Else {
-					Write-Host " Enter the ID# of the account you want to sign into."
-					Write-Host " Alternatively choose from the following menu options:"
-				}
+			if ($Script:D2rRunning -ne $True){
+				Write-Host "  Press '$X[38;2;255;165;000;22mEnter$X[0m' or '$X[38;2;255;165;000;22mp$X[0m' to launch the game (in offline mode)."
+				Write-Host "  Alternatively choose from the following menu options:"
 			}
-			else {#if there aren't any available options, IE all accounts are open
-				Write-Host " All Accounts are currently open!" -foregroundcolor yellow
-			}
-			#Write-Host "  '$X[38;2;255;165;000;22mr$X[0m' to Refresh"
+			else {
+				Write-Host "  Choose from the following menu options:"
+			}			
 			if ($Script:Config.ManualSettingSwitcherEnabled -eq $true){
 				$ManualSettingSwitcherOption = "s"
-				Write-Host "  '$X[38;2;255;165;000;22mr$X[0m' to Refresh, $X[38;2;255;165;000;22mo$X[0m' for config options, '$X[38;2;255;165;000;22ms$X[0m' to toggle the Manual Setting Switcher, "
-				Write-Host "  '$X[38;2;255;165;000;22mi$X[0m' for info or '$X[38;2;255;165;000;22mx$X[0m' to $X[38;2;255;000;000;22mExit$X[0m: "-nonewline
+				Write-Host "  '$X[38;2;255;165;000;22mr$X[0m' to Refresh, $X[38;2;255;165;000;22mo$X[0m' for config options, '$X[38;2;255;165;000;22mi$X[0m' for info"
+				Write-Host "  '$X[38;2;255;165;000;22ms$X[0m' to toggle the Manual Setting Switcher, or '$X[38;2;255;165;000;22mx$X[0m' to $X[38;2;255;000;000;22mExit$X[0m: "-nonewline
 			}
 			Else {
 				$ManualSettingSwitcherOption = $null
 				Write-Host "  '$X[38;2;255;165;000;22mr$X[0m' to Refresh, $X[38;2;255;165;000;22mo$X[0m' for config options, '$X[38;2;255;165;000;22mi$X[0m' for info or '$X[38;2;255;165;000;22mx$X[0m' to $X[38;2;255;000;000;22mExit$X[0m: " -nonewline
 			}
-			if ($Script:TwoDigitIDsUsed -eq $True){
-				$Script:AccountID = ReadKeyTimeout "" $MenuRefreshRate "r" -TwoDigitAcctSelection $True #$MenuRefreshRate represents the refresh rate of the menu in seconds (30). if no button is pressed, send "r" for refresh.
+			$Script:MainMenuOption = ReadKeyTimeout "" $MenuRefreshRate "r" -AdditionalAllowedKeys 13 #$MenuRefreshRate represents the refresh rate of the menu in seconds (30). if no button is pressed, send "r" for refresh.
+			if ($script:key.virtualkeycode -eq "13"){
+				$Script:MainMenuOption = "p"
 			}
-			else {
-				$Script:AccountID = ReadKeyTimeout "" $MenuRefreshRate "r" #$MenuRefreshRate represents the refresh rate of the menu in seconds (30). if no button is pressed, send "r" for refresh.
-			}
-			if ($Script:AccountID -notin ($Script:AcceptableValues + "x" + "r" + "g" + "i" + "o" + $ManualSettingSwitcherOption) -and $Null -ne $Script:AccountID){
+			if ($Script:MainMenuOption -notin ("x" + "r" + "g" + "i" + "o" + "p" + $ManualSettingSwitcherOption).ToCharArray()){
 				Write-Host " Invalid Input. Please enter one of the options above." -foregroundcolor red
-				$Script:AccountID = $Null
+				$Script:MainMenuOption = $Null
 			}
-		} until ($Null -ne $Script:AccountID)
-		if ($Null -ne $Script:AccountID){
-			if ($Script:AccountID -eq "x"){
+		} until ($Null -ne $Script:MainMenuOption)
+		if ($Null -ne $Script:MainMenuOption){
+			if ($Script:MainMenuOption -eq "x"){
 				Write-Host "`n Good day to you partner :)" -foregroundcolor yellow
 				Start-Sleep -milliseconds 486
 				Exit
 			}
-			$Script:AccountChoice = $Script:AccountOptionsCSV | where-object {$_.id -eq $Script:AccountID} #filter out to only include the account we selected.
 		}
 		$Script:RunOnce = $True
-	} until ($Script:AccountID -ne "r" -and $Script:AccountID -ne "g" -and $Script:AccountID -ne "s" -and $Script:AccountID -ne "i" -and $Script:AccountID -ne "o")
+	} until ($Script:MainMenuOption -ne "r" -and $Script:MainMenuOption -ne "g" -and $Script:MainMenuOption -ne "s" -and $Script:MainMenuOption -ne "i" -and $Script:MainMenuOption -ne "o")
 }
 Function Processing {
-	$Script:AccountFriendlyName = $Script:AccountChoice.CharacterName.tostring()
 	#Open diablo with parameters
 		# IE, this is essentially just opening D2r like you would with a shortcut target of "C:\Program Files (x86)\Battle.net\Games\Diablo II Resurrected\D2R.exe" -username <yourusername -password <yourPW> -address <SERVERaddress>
 	$CustomLaunchArguments = ($Config.CustomLaunchArguments).replace("`"","").replace("'","") #clean up arguments in case they contain quotes (for folks that have used excel to edit characters.csv).
@@ -1908,103 +1726,16 @@ Function Processing {
 		$arguments = $arguments + " -w"
 	}
 	#Switch Settings file to load D2r from.
-	if ($Config.SettingSwitcherEnabled -eq $True -and $Script:AskForSettings -ne $True){#if user has enabled the auto settings switcher.
-		$SettingsProfilePath = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
-		if ($Config.CustomLaunchArguments -match "-mod"){
-			$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
-			if ($Config.CustomLaunchArguments -match $pattern){
-				$ModName = $matches[1]
-				try {
-					Write-Verbose "Trying to get Mod Content..."
-					try {
-						$Modinfo = ((Get-Content "$($Config.GamePath)\Mods\$ModName\$ModName.mpq\Modinfo.json" -ErrorAction silentlycontinue | ConvertFrom-Json).savepath).Trim("/")
-					}
-					catch {
-						try {
-							$Modinfo = ((Get-Content "$($Config.GamePath)\Mods\$ModName\Modinfo.json" -ErrorAction stop -ErrorVariable ModReadError | ConvertFrom-Json).savepath).Trim("/")
-						}
-						catch {
-							FormatFunction -Text "Using standard settings path. Couldn't find Modinfo.json in '$($Config.GamePath)\Mods\$ModName\$ModName.mpq'" -IsWarning
-							start-sleep -milliseconds 1500
-						}
-					}
-					If ($Null -eq $Modinfo){
-						Write-Verbose " No Custom Save Path Specified for this mod."
-					}
-					ElseIf ($Modinfo -ne "../"){
-						$SettingsProfilePath += "mods\$Modinfo\"
-						if (-not (Test-Path $SettingsProfilePath)){
-							Write-Host " Mod Save Folder doesn't exist yet. Creating folder..."
-							New-Item -ItemType Directory -Path $SettingsProfilePath -ErrorAction stop | Out-Null
-							Write-Host " Created folder: $SettingsProfilePath" -ForegroundColor Green
-						}
-						Write-Host " Mod: $ModName detected. Using custom path for settings.json." -ForegroundColor Green
-						Write-Verbose " $SettingsProfilePath"
-					}
-					Else {
-						Write-Verbose " Mod used but save path is standard."
-					}
-				}
-				Catch {
-					Write-Verbose " Mod used but custom save path not specified."
-				}
-			}
-			else {
-				Write-Host " Couldn't detect Mod name. Standard path to be used for settings.json." -ForegroundColor Red
-			}
-		}
-		$SettingsJSON = ($SettingsProfilePath + "Settings.json")
-		if ((Test-Path -Path ($SettingsProfilePath + "Settings.json")) -eq $true){ #check if settings.json does exist in the savegame path (if it doesn't, this indicates first time launch or use of a new single player mod).
-			ForEach ($id in $Script:AccountOptionsCSV){#create a copy of settings.json file per account so user doesn't have to do it themselves
-				if ((Test-Path -Path ($SettingsProfilePath + "Settings" + $id.id +".json")) -ne $true){#if somehow settings<ID>.json doesn't exist yet make one from the current settings.json file.
-					try {
-						Copy-Item $SettingsJSON ($SettingsProfilePath + "Settings"+ $id.id + ".json") -ErrorAction Stop
-					}
-					catch {
-						FormatFunction -Text "`nCouldn't find settings.json in $SettingsProfilePath" -IsError
-						if ($Config.CustomLaunchArguments -match "-mod"){
-							Break
-						}
-						Else {
-							Write-Host " Start the game normally (via Bnet client) & this file will be rebuilt." -foregroundcolor red
-						}
-						Write-Host
-						PressTheAnyKeyToExit
-					}
-				}
-			}
-			try {
-				Copy-item ($SettingsProfilePath + "settings"+ $Script:AccountID + ".json") $SettingsJSON -ErrorAction Stop #overwrite settings.json with settings<ID>.json (<ID> being the account ID). This means any changes to settings in settings.json will be lost the next time an account is loaded by the script.
-				$CurrentLabel = ($Script:AccountOptionsCSV | where-object {$_.id -eq $Script:AccountID}).CharacterName
-				formatfunction -text ("Custom game settings (settings" + $Script:AccountID + ".json) being used for " + $CurrentLabel) -success
-				Start-Sleep -milliseconds 133
-			}
-			catch {
-				FormatFunction -Text "Couldn't overwrite settings.json for some reason. Make sure you don't have the file open!" -IsError
-				PressTheAnyKey
-			}
-		}
-	}
 	if ($Script:AskForSettings -eq $True){#steps go through if user has toggled on the manual setting switcher ('s' in the menu).
-		$SettingsProfilePath = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
+		CheckForModSavePath -settings
 		$SettingsJSON = ($SettingsProfilePath + "Settings.json")
 		$files = Get-ChildItem -Path $SettingsProfilePath -Filter "settings.*.json"
 		$Counter = 1
-		if ((Test-Path -Path ($SettingsProfilePath+ "Settings" + $id.id +".json")) -ne $true){#if somehow settings<ID>.json doesn't exist yet make one from the current settings.json file.
-			try {
-				Copy-Item $SettingsJSON ($SettingsProfilePath + "Settings"+ $id.id + ".json") -ErrorAction Stop
-			}
-			catch {
-				Write-Host "`n Couldn't find settings.json in $SettingsProfilePath" -foregroundcolor red
-				Write-Host " Please start the game normally (via Bnet client) & this file will be rebuilt." -foregroundcolor red
-				PressTheAnyKeyToExit
-			}
-		}
 		$SettingsDefaultOptionArray = New-Object -TypeName System.Collections.ArrayList #Add in an option for the default settings file (if it exists, if the auto switcher has never been used it won't appear.
 		$SettingsDefaultOption = New-Object -TypeName psobject
 		$SettingsDefaultOption | Add-Member -MemberType NoteProperty -Name "ID" -Value $Counter
-		$SettingsDefaultOption | Add-Member -MemberType NoteProperty -Name "Name" -Value ("Default - settings"+ $Script:AccountID + ".json")
-		$SettingsDefaultOption | Add-Member -MemberType NoteProperty -Name "FileName" -Value ("settings"+ $Script:AccountID + ".json")
+		$SettingsDefaultOption | Add-Member -MemberType NoteProperty -Name "Name" -Value ("Default - settings.json")
+		$SettingsDefaultOption | Add-Member -MemberType NoteProperty -Name "FileName" -Value ("settings.json")
 		[VOID]$SettingsDefaultOptionArray.Add($SettingsDefaultOption)
 		$SettingsFileOptions = New-Object -TypeName System.Collections.ArrayList
 		ForEach ($file in $files){
@@ -2038,21 +1769,19 @@ Function Processing {
 					$SettingsCancelOption = "c"
 				}
 				$SettingsChoice = ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27 #$MenuRefreshRate represents the refresh rate of the menu in seconds (30). If no button is pressed, send "c" for cancel.
-				if ($SettingsChoice -eq ""){
-					$SettingsChoice = 1
-				}
 				Write-Host
 				if ($SettingsChoice.tostring() -notin $SettingsFileOptions.id + $SettingsCancelOption + "Esc"){
 					Write-Host "  Invalid Input. Please enter one of the options above." -foregroundcolor red
 					$SettingsChoice = ""
 				}
 			} until ($SettingsChoice.tostring() -in $SettingsFileOptions.id + $SettingsCancelOption + "Esc")
-			if ($SettingsChoice -ne "c" -and $SettingsChoice -ne "Esc"){
+			if ($SettingsChoice -ne "c" -and $SettingsChoice -ne "Esc" -and $SettingsChoice -ne "1"){
+				$SettingsChoice 
+				pause
 				$SettingsToLoadFrom = $SettingsFileOptions | where-object {$_.id -eq $SettingsChoice.tostring()}
 				try {
 					Copy-item ($SettingsProfilePath + $SettingsToLoadFrom.FileName) -Destination $SettingsJSON #-ErrorAction Stop #overwrite settings.json with settings<Name>.json (<Name> being the name of the config user selects). This means any changes to settings in settings.json will be lost the next time an account is loaded by the script.
-					$CurrentLabel = ($Script:AccountOptionsCSV | where-object {$_.id -eq $Script:AccountID}).CharacterName
-					Write-Host (" Custom game settings (" + $SettingsToLoadFrom.Name + ") being used for " + $CurrentLabel + "`n") -foregroundcolor green
+					Write-Host (" Custom game settings (" + $SettingsToLoadFrom.Name + ") being used.`n") -foregroundcolor green
 					Start-Sleep -milliseconds 100
 				}
 				catch {
@@ -2094,7 +1823,7 @@ Function Processing {
 			PressTheAnyKey
 		}
 		#Rename the Diablo Game window for easier identification of which character the game is.
-		$rename = ($Script:AccountID + " - " + $Script:AccountFriendlyName + " - Diablo II: Resurrected (SP)")
+		$rename = ("Diablo II: Resurrected (SP)")
 		$Command = ('"'+ $WorkingDirectory + '\SetText\SetTextv2.exe" /PID ' + $process.id + ' "' + $rename + '"')
 		try {
 			cmd.exe /c $Command
@@ -2105,31 +1834,6 @@ Function Processing {
 		catch {
 			Write-Host " Couldn't rename window :(" -foregroundcolor red
 			PressTheAnyKey
-		}
-		If ($Script:Config.RememberWindowLocations -eq $True){ #If user has enabled the feature to automatically move game Windows to preferred screen locations.
-			if ($Script:AccountChoice.WindowXCoordinates -ne "" -and $Script:AccountChoice.WindowYCoordinates -ne "" -and $Null -ne $Script:AccountChoice.WindowXCoordinates -and $Null -ne $Script:AccountChoice.WindowYCoordinates -and $Script:AccountChoice.WindowWidth -ne "" -and $Script:AccountChoice.WindowHeight -ne "" -and $Null -ne $Script:AccountChoice.WindowWidth -and $Null -ne $Script:AccountChoice.WindowHeight){ #Check if the account has had coordinates saved yet.
-				$GetLoadWindowClassFunc = $(Get-Command LoadWindowClass).Definition
-				$GetSetWindowLocationsFunc = $(Get-Command SetWindowLocations).Definition
-				$JobID = (Start-Job -ScriptBlock { # Run this in a background job so we don't have to wait for it to complete
-					start-sleep -milliseconds 2024 # We need to wait for about 2 seconds for game to load as if we move it too early, the game itself will reposition the window. Absolute minimum is 420 milliseconds (funnily enough). Delay may need to be a bit higher for people with wooden computers.
-					Invoke-Expression "function LoadWindowClass {$using:GetLoadWindowClassFunc}"
-					Invoke-Expression "function SetWindowLocations {$using:GetSetWindowLocationsFunc}"
-					SetWindowLocations -x $Using:AccountChoice.WindowXCoordinates -y $Using:AccountChoice.WindowYCoordinates -Width $Using:AccountChoice.WindowWidth -height $Using:AccountChoice.WindowHeight -Id $Using:process.id
-				}).id
-				$Script:MovedWindowLocations ++
-				$Script:JobIDs += $JobID
-			}
-			Else { #Show a warning if user has RememberWindowLocations but hasn't configured it for this account yet.
-				FormatFunction -iswarning -text "`n'RememberWindowLocations' config is enabled but can't move game window to preferred location as coordinates need to be defined for the account first.`n`nTo setup follow the quick steps below:"
-				FormatFunction -iswarning -indents 1 -SubsequentLineIndents 3 -text "1. Open all of your D2r account instances.`n2. Move the window for each game instance to your preferred layout."
-				FormatFunction -iswarning -indents 1 -SubsequentLineIndents 3 -text "3. Go to the options menu in the script and go into the 'RememberWindowLocations' setting.`n4. Once in this menu, choose the option 's' to save coordinates of any open game instances."
-				FormatFunction -iswarning -text  "`nNow when you open these accounts they will open in this screen location each time :)`n"
-				PressTheAnyKey
-			}
-		}
-		if ($Script:MovedWindowLocations -ge 1){
-			FormatFunction -IsSuccess -text "Moved game window to preferred location."
-			Start-Sleep -milliseconds 750
 		}
 		if ($Config.GrailAppExecutablePath -ne ""){
 			$GrailProcessName = (split-path $Config.GrailAppExecutablePath -leaf).trim(".exe") #check if app is already running, if so we will skip
