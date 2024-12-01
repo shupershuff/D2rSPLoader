@@ -8,8 +8,8 @@ Work in progress but plan to enable the following features:
 - DONE Start Run timer app (of your choosing) if not already running at game launch.
 - Incorporate [Offline Backup](https://github.com/shupershuff/FolderBackup) and [cloud sync'd backup](https://github.com/shupershuff/D2rSinglePlayerBackup).
 - DONE Load/Unload Save game sets (eg if switching between Grail characters and edited test characters). Note, character names should be unique.
-- Track time by character by assessing save game files for changes
-- Show only characters your interested in on main screen (whitelist to exclude mules)
+- DONE Track time by character by assessing save game files for changes
+- DONE Show only characters your interested in on main screen (whitelist to exclude mules)
 - Menu for launch options for seed, nosave, enablerespec, playersX, resetofflinemaps etc
 
 Will probably work on this over new year break and have something early 2025 :)
