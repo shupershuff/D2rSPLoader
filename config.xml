@@ -18,20 +18,11 @@
 	<!--If you have a custom .ico you want to use, put the path of it here.-->
 	<ShortcutCustomIconPath></ShortcutCustomIconPath>
 
-	<!--Make game launch each instance in the same screen location so you don't have to move your game windows around when starting the game.-->
-	<RememberWindowLocations>False</RememberWindowLocations>
-
 	<!--Make sure game always starts in Windowed mode rather than full screen. Note that this seems to cause issues remembering your last window size. Recommend leaving false-->
 	<ForceWindowedMode>False</ForceWindowedMode>
 	
 	<!--Disable Intro videos and videos in between each act.-->
 	<DisableVideos>True</DisableVideos>
-
-	<!--This enables the script to match a config file (settings.json) to the account you are launching. 
-	Eg if using account 1, this is achieved by overwriting settings.json with settings1.json.
-	Due to this, if enabled, settings1.json,settins2.json etc will not be updated if you update your game settings.
-	As such	you will need to manually update your settings.json config file, see readme for more details. -->
-	<SettingSwitcherEnabled>True</SettingSwitcherEnabled>
 
 	<!--Can be used standalone or in conjunction with the standard setting switcher above.
 	This enables the menu option to enter 's' and manually pick between settings config files. Use this if you want to select Awesome or Poo graphics settings for an account.
