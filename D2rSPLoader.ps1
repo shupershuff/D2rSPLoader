@@ -1117,8 +1117,9 @@ Function Options {
 	write-host "  Other Options: "
 	Write-Host "   $X[38;2;255;165;000;22m5$X[0m - $X[4mShow/Hide Characters on main screen$X[0m" #Whitelist chars for main screen
 	Write-Host "   $X[38;2;255;165;000;22m6$X[0m - $X[4mManualSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.ManualSettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
+	Write-Host "   $X[38;2;255;165;000;22m7$X[0m - $X[4mDisableVideos$X[0m (Currently $X[38;2;255;165;000;22m$($Script:Config.DisableVideos)$X[0m)"
 	if ($null -ne $D2rDirectories){
-		Write-Host "   $X[38;2;255;165;000;22m7$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
+		Write-Host "   $X[38;2;255;165;000;22m8$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
 	}
 	Write-Host "`n Enter one of the above options to change the setting."
 	Write-Host " Otherwise, press any other key to return to main menu... " -nonewline
@@ -1178,7 +1179,6 @@ Function Options {
 					}
 				}
 			}
-	pause
 		} until ($NewOptionValue -in $AcceptableOptions + "c" + "Esc")
 		if ($NewOptionValue -in $AcceptableOptions){
 			try {
@@ -1234,7 +1234,22 @@ Function Options {
 		-Description "This enables you to manually choose which settings file the game should use launching another game instance.`nFor example if you want to choose to launch with potato graphics or good graphics.`nPlease see GitHub for instructions on how to set this up and how to edit settings." `
 		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
 	}
-	ElseIf ($Option -eq "7" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
+	ElseIf ($Option -eq "7"){ #DisableVideos
+		If ($Script:Config.DisableVideos -eq "False"){
+			$Options = @{"1" = "True"}
+			$OptionsSubText = "enable"
+			$CurrentState = "Disabled"
+		}
+		Else {
+			$Options = @{"1" = "False"}
+			$OptionsSubText = "disable"
+			$CurrentState = "Enabled"
+		}
+		$XMLChanged = OptionSubMenu -ConfigName "DisableVideos" -OptionsList $Options -Current $CurrentState `
+		-Description "This enables you to disable intro videos and videos in between each act." `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
+	}
+	ElseIf ($Option -eq "8" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
 		$CurrentD2rSaveFiles = Get-ChildItem -Path "$CharacterSavePath" -Filter "*.d2s" -File
 		$OptionsList = @{}
 		For ($iterate = 0; $iterate -lt $NonEmptyDirectories.Count; $iterate ++) {
