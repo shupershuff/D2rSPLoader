@@ -10,7 +10,7 @@ Work in progress but plan to enable the following features:
 - DONE Load/Unload Save game sets (eg if switching between Grail characters and edited test characters). Note, character names should be unique.
 - DONE Track time by character by assessing save game files for changes
 - DONE Show only characters your interested in on main screen (whitelist to exclude mules)
-- Menu for launch options for seed, nosave, enablerespec, playersX, resetofflinemaps etc
+- IN PROGRESS Menu for launch options for seed, nosave, enablerespec, playersX, resetofflinemaps etc
 
 Will probably work on this over new year break and have something early 2025 :)
 
