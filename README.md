@@ -9,9 +9,9 @@ Work in progress but plan to enable the following features:
 - DONE Load/Unload Save game sets (eg if switching between Grail characters and edited test characters). Note, character names should be unique.
 - DONE Track time by character by assessing save game files for changes
 - DONE Show only characters your interested in on main screen (whitelist to exclude mules)
-- IN PROGRESS Menu for launch options for seed, enablerespec, playersX, resetofflinemaps etc
-- Incorporate [Offline Backup](https://github.com/shupershuff/FolderBackup) and [cloud sync'd backup](https://github.com/shupershuff/D2rSinglePlayerBackup).
+- DONE Menu for launch options for seed, enablerespec, playersX, resetofflinemaps etc
+- DONE Incorporate [Offline Backup](https://github.com/shupershuff/FolderBackup) and [cloud sync'd backup](https://github.com/shupershuff/D2rSinglePlayerBackup).
 
-Will probably work on this over new year break and have something early 2025 :)
+almost ready...
 
 Page views as of 2nd Oct 2024:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fshupershuff%2FD2rSPLoader&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)<br>
