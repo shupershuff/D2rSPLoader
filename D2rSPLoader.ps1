@@ -10,16 +10,12 @@ Purpose:
 Instructions: See GitHub readme https://github.com/shupershuff/D2rSPLoader
 
 
-1.0 to do list
-remove auto setting switcher
-Add skip intro and skip video options, and notify user if they're using customcommands
-add save game checks and calculate active player by savegame with most recent update. need to confirm D2r saving pattern.
-add options for seed, nosave. enable respec, playersX, -resetofflinemaps.
+1.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "0.4" #single player edit, adjusted shortcut.
+$CurrentVersion = "0.6" #single player edit, adjusted shortcut.
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -414,7 +410,7 @@ Function CheckForUpdates {
 						Write-Host "`n Invalid response. Choose $X[38;2;255;165;000;22mY$X[0m $X[38;2;231;072;086;22mor$X[0m $X[38;2;255;165;000;22mN$X[0m.`n" -ForegroundColor red
 					}
 				} Until ($UpdateResponseValid -eq $True)
-				if ($ShouldUpdate -eq "y" -or $ShouldUpdate -eq "yes"){#if user wants to update script, download .zip of latest release, extract to temporary folder and replace old D2Loader.ps1 with new D2Loader.ps1
+				if ($ShouldUpdate -eq "y" -or $ShouldUpdate -eq "yes"){#if user wants to update script, download .zip of latest release, extract to temporary folder and replace old D2rSPLoader.ps1 with new D2rSPLoader.ps1
 					Write-Host "`n Updating... :)" -foregroundcolor green
 					try {
 						New-Item -ItemType Directory -Path ($Script:WorkingDirectory + "\UpdateTemp\") -ErrorAction stop | Out-Null #create temporary folder to download zip to and extract
@@ -424,7 +420,7 @@ Function CheckForUpdates {
 						New-Item -ItemType Directory -Path ($Script:WorkingDirectory + "\UpdateTemp\") | Out-Null #create temporary folder to download zip to and extract
 					}
 					$ZipURL = $ReleaseInfo.zipball_url #get zip download URL
-					$ZipPath = ($WorkingDirectory + "\UpdateTemp\D2Loader_" + $ReleaseInfo.tag_name + "_temp.zip")
+					$ZipPath = ($WorkingDirectory + "\UpdateTemp\D2rSPLoader_" + $ReleaseInfo.tag_name + "_temp.zip")
 					Invoke-WebRequest -Uri $ZipURL -OutFile $ZipPath
 					if ($Null -ne $releaseinfo.assets.browser_download_url){#Check If I didn't forget to make a version.zip file and if so download it. This is purely so I can get an idea of how many people are using the script or how many people have updated. I have to do it this way as downloading the source zip file doesn't count as a download in github and won't be tracked.
 						Invoke-WebRequest -Uri $releaseinfo.assets.browser_download_url -OutFile $null | out-null #identify the latest file only.
@@ -432,7 +428,7 @@ Function CheckForUpdates {
 					$ExtractPath = ($Script:WorkingDirectory + "\UpdateTemp\")
 					Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
 					$FolderPath = Get-ChildItem -Path $ExtractPath -Directory -Filter "shupershuff*" | Select-Object -ExpandProperty FullName
-					Copy-Item -Path ($FolderPath + "\D2Loader.ps1") -Destination ($Script:WorkingDirectory + "\" + $Script:ScriptFileName) #using $Script:ScriptFileName allows the user to rename the file if they want
+					Copy-Item -Path ($FolderPath + "\D2rSPLoader.ps1") -Destination ($Script:WorkingDirectory + "\" + $Script:ScriptFileName) #using $Script:ScriptFileName allows the user to rename the file if they want
 					Remove-Item -Path ($Script:WorkingDirectory + "\UpdateTemp\") -Recurse -Force #delete update temporary folder
 					Write-Host " Updated :)" -foregroundcolor green
 					Start-Sleep -milliseconds 850
@@ -461,7 +457,7 @@ Function CheckForUpdates {
 			$Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/shupershuff/D2rSPLoader/releases"
 			$ReleaseInfo = ($Releases | Sort-Object id -desc)[0] #find release with the highest ID.
 			$ZipURL = $ReleaseInfo.zipball_url #get zip download URL
-			$ZipPath = ($WorkingDirectory + "\UpdateTemp\D2Loader_" + $ReleaseInfo.tag_name + "_temp.zip")
+			$ZipPath = ($WorkingDirectory + "\UpdateTemp\D2rSPLoader_" + $ReleaseInfo.tag_name + "_temp.zip")
 			Invoke-WebRequest -Uri $ZipURL -OutFile $ZipPath
 			if ($Null -ne $releaseinfo.assets.browser_download_url){#Check If I didn't forget to make a version.zip file and if so download it. This is purely so I can get an idea of how many people are using the script or how many people have updated. I have to do it this way as downloading the source zip file doesn't count as a download in github and won't be tracked.
 				Invoke-WebRequest -Uri $releaseinfo.assets.browser_download_url -OutFile $null | out-null #identify the latest file only.
@@ -476,7 +472,7 @@ Function CheckForUpdates {
 }
 Function ImportXML { #Import Config XML
 	try {
-		$Script:Config = ([xml](Get-Content "$Script:WorkingDirectory\Config.xml" -ErrorAction Stop)).D2loaderconfig
+		$Script:Config = ([xml](Get-Content "$Script:WorkingDirectory\Config.xml" -ErrorAction Stop)).D2SPLoaderConfig
 		Write-Verbose "Config imported successfully."
 	}
 	Catch {
@@ -491,7 +487,7 @@ Function ValidationAndSetup {
 	#	Note to self, enter in any future additions/removals from config.xml here.
 	#
 	#Perform some validation on config.xml. Helps avoid errors for people who may be on older versions of the script and are updating. Will look to remove all of this in a future update.
-	$Script:Config = ([xml](Get-Content "$Script:WorkingDirectory\Config.xml" -ErrorAction Stop)).D2loaderconfig #import config.xml again for any updates made by the above.
+	$Script:Config = ([xml](Get-Content "$Script:WorkingDirectory\Config.xml" -ErrorAction Stop)).D2SPLoaderConfig #import config.xml again for any updates made by the above.
 	#check if there's any missing config.xml options, if so user has out of date config file.
 	$AvailableConfigs = #add to this if adding features.
 	"GamePath",
@@ -500,6 +496,7 @@ Function ValidationAndSetup {
 	$BooleanConfigs =
 	"ManualSettingSwitcherEnabled",
 	"DisableVideos",
+	"AutoBackup",
 	"CreateDesktopShortcut",
 	"ForceWindowedMode"
 	$AvailableConfigs = $AvailableConfigs + $BooleanConfigs
@@ -625,19 +622,21 @@ Function ValidationAndSetup {
 			PressTheAnyKeyToExit
 		}
 	}
+}
+Function DisableVideos {
 	#Diable Videos feature
+	$VideoFiles = @(
+		"blizzardlogos.webm",
+		"d2intro.webm",
+		"logoanim.webm",
+		"d2x_intro.webm",
+		"act2\act02start.webm",
+		"act3\act03start.webm",
+		"act4\act04start.webm",
+		"act4\act04end.webm",
+		"act5\d2x_out.webm"
+	)
 	if ($Config.DisableVideos -eq $True){
-		$VideoFiles = @(
-			"blizzardlogos.webm",
-			"d2intro.webm",
-			"logoanim.webm",
-			"d2x_intro.webm",
-			"act2\act02start.webm",
-			"act3\act03start.webm",
-			"act4\act04start.webm",
-			"act4\act04end.webm",
-			"act5\d2x_out.webm"
-		)
 		if ($Config.CustomLaunchArguments -match "-mod"){
 			$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
 			if ($Config.CustomLaunchArguments -match $pattern){
@@ -684,7 +683,12 @@ Function ValidationAndSetup {
 			foreach ($File in $VideoFiles){
 				if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -gt 0){ #check if file is larger than 0 bytes and if so backup original file and replace with 0 byte file.
 					$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
-					Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File" -NewName "$FileName.backup" | Out-Null
+					try { #try renaming file. If it can't be renamed, it must already exist, therefore delete the video file.
+						Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File" -NewName "$FileName.backup" -erroraction stop | Out-Null
+					}
+					Catch {
+						Remove-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File"
+					}
 					New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\$File" | Out-Null
 				}
 			}
@@ -692,7 +696,7 @@ Function ValidationAndSetup {
 		else { #if user has not extracted files, launch with mod
 			$ModPath = $Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\data\hd\global\video"
 			if (-not (Test-Path "$ModPath")){
-				Write-Host " Creating needed folders for disabling D2r videos..."
+				Write-Host "  Creating needed folders for disabling D2r videos..."
 				New-Item -ItemType Directory -Path $ModPath -ErrorAction stop | Out-Null
 				New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction stop | Out-Null
 				New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction stop | Out-Null
@@ -709,10 +713,54 @@ Function ValidationAndSetup {
 				}
 				$json = $data | ConvertTo-Json -Depth 1 -Compress # Convert the hashtable to JSON
 				Set-Content -Path ($Config.GamePath + "\mods\DisableVideos\DisableVideos.mpq\modinfo.json") -Value $json -Encoding UTF8 # Write the JSON content to the file
-				Write-Host " Created dummy D2r videos." -ForegroundColor Green
+				Write-Host "  Created dummy D2r videos.`n" -ForegroundColor Green
 				start-sleep -milliseconds 222
 			}
 			$Script:StartWithDisableVideosMod = $True
+		}
+	}
+	else {
+		Write-Debug "Videos are enabled"
+		$Script:StartWithDisableVideosMod = $False
+		if ($Config.CustomLaunchArguments -match "-direct -txt"){ #if user has extracted files.
+			foreach ($File in $VideoFiles){
+				if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -eq 0){ #check if file is l0 bytes and if so remove 0 byte file and restore original file.
+					$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+					Remove-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File"
+					write-debug "removed $($Config.GamePath)\Data\hd\global\video\$File"
+					Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null
+					write-debug "renamed $($Config.GamePath)\Data\hd\global\video\$File.backup"
+				}
+			}
+		}
+		elseif ($Config.CustomLaunchArguments -match "mod"){ #if user has extracted files.
+			$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
+			if ($Config.CustomLaunchArguments -match $pattern){
+				$ModName = $matches[1]	
+				$ModPath = $Config.GamePath + "\mods\$ModName\$ModName.mpq\data\hd\global\video"
+				if (-not(Test-Path "$ModPath\act2\act02start.webm.backup")){#figure out if we should try rename files from backup or just delete.
+					$Replace = $True
+				}
+				foreach ($File in $VideoFiles){
+					if ((Get-Item "$ModPath\$File").Length -eq 0){ #check if file is l0 bytes and if so remove 0 byte file and restore original file.
+						$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+						if ($Replace = $True){
+							Rename-Item -Path "$ModPath\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null
+						}
+						Else {
+							Remove-Item -Path "$ModPath\$File"
+							if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -eq 0){#check to see if we can rely on original game files. If this is true, original files are empty and can't be used
+								try {
+									Rename-Item -Path "$ModPath\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null #Attempt to see if there's a backup we can restore from in the mod folder. Unlikely.
+								}
+								Catch {
+									formatfunction -IsError -indent 2 "Couldn't restore $($Config.GamePath)\Data\hd\global\video\$File.`nYou may need to repair your game from the Battlenet client."
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -776,6 +824,303 @@ Function ImportCSV { #Import Character CSV
 	Copy-Item -Path ($Script:WorkingDirectory + "\stats.csv") -Destination ($Script:WorkingDirectory + "\stats.backup.csv")
 	if ($Null -ne $Script:CharactersCSV){#Don't create backup csv if characters file isn't populated yet. prevents issues with first time run or running on a computer that doesnt have D2r char saves yet.
 		Copy-Item -Path ($Script:WorkingDirectory + "\characters.csv") -Destination ($Script:WorkingDirectory + "\characters.backup.csv")
+	}
+}
+Function CloudBackupSetup {
+	<#
+	Author: Shupershuff
+	Version: 1.0
+	Usage:
+		Close D2r if open. Run script to move Diablo 2 save folder from "C:\Users\<USERNAME>\Saved Games\Diablo II Resurrected" to your chosen cloud storage.
+	Purpose:
+		Quick and easy way for folk to ensure game saves are saved to the cloud instead of local only.
+		
+	Instructions: See GitHub readme https://github.com/shupershuff/D2rSinglePlayerBackup
+	Notes: 
+	- Google Drive only works if it's configured to store files locally AND on the cloud. In other words, the "Mirror files" option is chosen instead of "Stream files"/
+	- If ya want to do this yourself (for anything) without a script, just copy the data to a cloud sync'd path and use this command in CMD: mklink /J <DefaultSaveGamePath> <CloudSaveGamePath>
+	#>
+	##################
+	# Config Options #
+	##################
+	$SaveFolderName = "Saved Games" #Name of the folder which will be created.
+	##########
+	# Script #
+	##########
+	write-host
+	formatfunction -indents 1 "This will ensure your game files are saved in a cloud sync'd location."
+	write-host
+	$DefaultSaveGamePath = ("C:\Users\" + $env:username + "\Saved Games\Diablo II Resurrected")
+	$OneDriveSavePath = ("C:\Users\" + $env:username + "\OneDrive\")
+	$DropboxSavePath = ("C:\Users\" + $env:username + "\Dropbox\")
+	$GoogleDriveSavePath =  ("C:\Users\" + $env:username + "\My Drive\")
+	###Check if junction has already been created ###
+	$SavedGamesFolder = ("C:\Users\" + $env:username + "\Saved Games")
+	# Run cmd's dir command to get junction info, ensuring the path is quoted
+	$junctionInfo = cmd /c "dir `"$SavedGamesFolder`" /AL"
+	# Define a regex pattern to match the "Diablo II Resurrected" junction and its target path
+	$regexPattern = "\s+<JUNCTION>\s+Diablo II Resurrected\s+\[([^\]]+)\]"
+	# Check if the output contains the specific junction target path for "Diablo II Resurrected"
+	if ("$junctionInfo" -match $regexPattern){ #Warn user if they've already ran this script and moved the game folder.
+		# Extract the target path using the match
+		$JunctionTarget = $matches[1]
+		$RecreateJunction = $True
+		formatfunction -indents 1 -IsWarning -text "Warning, the D2r Savegame folder is already redirected."
+		formatfunction -indents 1 -IsWarning -text "This is currently pointing to: '$JunctionTarget'"
+		Write-host
+		Write-host "  If you're happy with game files already being saved to this cloud folder," -foregroundcolor yellow
+		Write-host "  choose cancel ($X[38;2;255;165;000;22mc$X[0m" -nonewline -foregroundcolor yellow; write-host ")" -foregroundcolor yellow
+		formatfunction -indents 1 -IsWarning -text "Otherwise, continue with the script to point it to the new cloud location."
+		Write-Host "`n  Press '$X[38;2;255;165;000;22mc$X[0m' to cancel or any other key to proceed: "  -nonewline
+		if (readkey -eq "c"){
+			return $False
+		}
+		Write-host
+	}
+	else {
+		Write-Verbose "No junction for 'Diablo II Resurrected' found in $SavedGamesFolder."
+	}
+	do {
+		$LastOption = 3
+		$OptionText = " or 3"
+		write-host "`n  Options are:"
+		write-host "   1 - OneDrive"
+		write-host "   2 - Dropbox"
+		write-host "   3 - Google Drive"
+		if ($RecreateJunction -eq $True) {
+			write-host "   4 - Move folder back to default (local) location"
+			$LastOption ++
+			$OptionText = ", 3 or 4"
+		}
+		write-host
+		$CloudOption = [int](ReadKey "  Enter the option would you like to choose (1, 2$OptionText): ").tostring()	
+		if ($CloudOption -notin 1..$LastOption){
+			write-host "  Please choose option 1, 2$OptionText.`n" -foregroundcolor red
+		}
+	} until ($CloudOption -in 1..$LastOption)
+	if ($CloudOption -eq 1){
+		write-host "  Configuring for OneDrive...`n"
+		$CloudSaveGamePath = ($OneDriveSavePath + $SaveFolderName + "\Diablo II Resurrected")
+	}
+	if ($CloudOption -eq 2){
+		write-host "  Configuring for Dropbox...`n"
+		$CloudSaveGamePath = ($DropboxSavePath + $SaveFolderName + "\Diablo II Resurrected")
+	}
+	if ($CloudOption -eq 3){
+		write-host "  Configuring for Google Drive...`n"
+		$CloudSaveGamePath = ($GoogleDriveSavePath + $SaveFolderName + "\Diablo II Resurrected")
+		formatfunction -indents 1 -IsWarning "Note, for this to save to the cloud, you need to configure Google Drive to store files locally AND on the cloud"
+		formatfunction -indents 1 -IsWarning "To do this, go into Google Drive preferences and change My Drive syncing options from 'Stream files' to 'Mirror files'.`n"
+		PressTheAnyKey
+	}
+	if ($RecreateJunction -eq $True){
+		write-verbose "Removing Existing Junction"
+		Remove-Item -Path $DefaultSaveGamePath -recurse -Force
+		New-Item $DefaultSaveGamePath -type directory | out-null
+		write-verbose "Moving Savegame data from previous junction target back to default location"
+		Get-ChildItem -Path $JunctionTarget | Copy-Item -Destination $DefaultSaveGamePath -Force -recurse
+		if ($CloudOption -eq 4){
+			Write-Host "  Moved Saved Game data back to default location.`n " -nonewline -foregroundcolor green
+			$DefaultSaveGamePath
+			Write-Host
+			Return $True
+		}
+	}
+	if (!(Test-Path -path $CloudSaveGamePath)) {
+		New-Item $CloudSaveGamePath -type directory | out-null
+		Write-host "  Created Directory: $CloudSaveGamePath" -foregroundcolor green
+	}
+	try {
+		Get-ChildItem -Path $DefaultSaveGamePath | Copy-Item -Destination $CloudSaveGamePath -Force -recurse
+		Remove-Item -Path $DefaultSaveGamePath -recurse -Force
+		formatfunction -indents 1 -IsSuccess "Moved D2r Saves to $CloudSaveGamePath "
+		cmd /c "mklink /J `"$DefaultSaveGamePath`" `"$CloudSaveGamePath`"" | out-null
+		formatfunction -indents 1 -IsSuccess "Junction created in Saved Games folder to $CloudSaveGamePath."
+		Write-host "`n  CloudBackup configured succesfully.`n" -foregroundcolor green
+		return $True
+	}
+	Catch {
+		Write-host "`n  Oh stink, something went wrong.`n" -foregroundcolor red
+	}
+}
+Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to rewrite to account for folder exclusions https://github.com/shupershuff/FolderBackup
+	Write-Host "   Backing up save games, please wait..." -foregroundcolor yellow
+	CheckForModSavePath
+	$PathToBackup = $Script:CharacterSavePath
+	# Define the folders to exclude
+	$ExcludedFolders = @("mods", "backup", "backups")
+	# Initialize results array as a System.Collections.ArrayList for better performance
+	$Results = [System.Collections.ArrayList]@()
+	# Function to recursively collect files and directories while excluding specific folders
+	function Get-FilteredItems {
+		param (
+			[string]$Path,
+			[string[]]$ExcludedFolders
+		)
+		# Get all items in the current directory
+		$Items = Get-ChildItem -Path $Path -Force
+		# Add the current directory to results if it's not excluded
+		if (-not ($ExcludedFolders -contains (Split-Path -Leaf $Path))) {
+			$null = $Results.Add((Get-Item $Path))
+		}
+		foreach ($Item in $Items) {
+			# Skip excluded folders
+			if ($Item.PSIsContainer -and ($ExcludedFolders -contains $Item.Name)) {
+				continue
+			}
+			# Add files directly to results
+			if (-not $Item.PSIsContainer) {
+				$null = $Results.Add($Item)
+			}
+			# If it's a directory, recurse into it
+			elseif ($Item.PSIsContainer) {
+				Get-FilteredItems -Path $Item.FullName -ExcludedFolders $ExcludedFolders
+			}
+		}
+	}
+	# Start collecting items from the root path
+	Get-FilteredItems -Path $PathToBackup -ExcludedFolders $ExcludedFolders
+	$PathToSaveBackup = Join-Path -Path $PathToBackup -ChildPath "Backups"
+	if (-not (Test-Path $PathToSaveBackup)) {
+		New-Item -ItemType Directory -Path $PathToSaveBackup -Force | Out-Null
+	}
+	# Helper function to calculate a folder hash. Prevents backup from rerunning and wasting time, storage and IO if no files have changed.
+	Function Get-FolderHash {
+		param ([string]$folderPath)
+		# Initialize excluded folders (can be adjusted based on your needs)
+		$ExcludedFolders = @("mods", "backup", "backups")
+		# Get all files recursively, ensuring excluded folders are excluded
+		$files = Get-ChildItem -Path $folderPath -Recurse -Force | Where-Object {
+			# Check if any part of the full path is in the excluded list
+			$exclude = $false
+			# Split the full path into individual parts (folder and file name)
+			$pathParts = $_.FullName.Split('\')
+			# Check if any part of the path matches an excluded folder
+			foreach ($part in $pathParts) {
+				if ($ExcludedFolders -contains $part) {
+					$exclude = $true
+					break
+				}
+			}
+			# Only include files that aren't in the excluded folders
+			-not $exclude
+		} | Sort-Object FullName
+		$combinedHashes = ""
+		# Calculate hash for each file
+		foreach ($file in $files) {
+			if (-not $file.PSIsContainer) {
+				# Only hash files, not directories
+				$fileHash = Get-FileHash -Path $file.FullName -Algorithm SHA256
+				$combinedHashes += $fileHash.Hash
+			}
+		}
+		# Final hash computation from all included files
+		$finalHash = [System.BitConverter]::ToString((New-Object Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($combinedHashes)))
+		return $finalHash.Replace("-", "")
+	}
+	# Get the current date and time
+	$currentDateTime = Get-Date
+	$year = $currentDateTime.Year
+	$month = $currentDateTime.ToString("MMMM")
+	$day = $currentDateTime.ToString("dd")
+	$hour = $currentDateTime.ToString("HHmm")
+	$HashFilePath = Join-Path -Path $PathToSaveBackup -ChildPath "last_backup_hash.txt"
+	$PreviousHash = if (Test-Path $HashFilePath) { Get-Content $HashFilePath } else { "" }
+	$CurrentHash = Get-FolderHash -folderPath $PathToBackup
+	if ($CurrentHash -eq $PreviousHash) {
+		formatfunction -IsSuccess -indent 2 "Backup: Folder has not changed since the last backup. No backup will be made."	
+		return "Skipped"
+	}
+	$destinationPath = Join-Path -Path $PathToSaveBackup -ChildPath "$year\$month\$day\$hour"
+	if (-not (Test-Path $destinationPath)) {
+		Write-Verbose "Backup: Creating Backup Folder in $PathToSaveBackup"
+		New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
+	}
+	# Copy each item while respecting exclusions
+	foreach ($Item in $Results) {
+		$RelativePath = $Item.FullName.Substring($PathToBackup.Length).TrimStart('\')
+		$Destination = Join-Path -Path $destinationPath -ChildPath $RelativePath
+		if ($Item.PSIsContainer) {
+			if (-not (Test-Path $Destination)) {
+				New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+			}
+		}
+		else {
+			$Dir = ([System.IO.Path]::GetDirectoryName($Destination))
+			if (-not (Test-Path ([System.IO.Path]::GetDirectoryName($Destination)))) {
+				New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Destination)) -Force | Out-Null
+			}
+			Copy-Item -Path $Item.FullName -Destination $Destination -Force | Out-Null
+		}
+	}
+	Write-verbose "Backup: Save Data copied to: $destinationPath" 
+	write-host "   D2r Save Game data has been backed up :)" -ForegroundColor Green
+	start-sleep 1
+	$CurrentHash | Out-File -FilePath $HashFilePath -Force
+
+	#Start Cleanup Tasks
+	Write-verbose "Backup: Checking for old backups that can be cleaned up..."
+	$DirectoryArray = New-Object -TypeName System.Collections.ArrayList
+	Get-ChildItem -Path "$PathToSaveBackup\" -Directory -recurse -Depth 3 | Where-Object {$_.FullName -match '\\\d{4}\\\w+\\\d+\\\d{4}$'} | ForEach-Object {
+		$DirectoryObject = New-Object -TypeName PSObject
+		$pathComponents = $_.FullName -split '\\'
+		$year = $pathComponents[-4]
+		$month = $pathComponents[-3]
+		$month = [datetime]::ParseExact($month, 'MMMM', $null).Month # convert month from text to number. EG February to 02
+		$day = $pathComponents[-2]
+		$time = $pathComponents[-1]
+		$hour = $time[0]+$time[1]
+		$minute = $time[2]+$time[3]
+		$dateInFolder = Get-Date -Year $year -Month $month -Day $day -Hour $hour -minute $minute -second 00 #$minute can be changed to 00 if we want all the folders to be nicely named.
+		$ShortFolderDate = (Get-Date -Year $year -Month $month -Day $day).ToString("d")
+		Add-Member -InputObject $DirectoryObject -MemberType NoteProperty -Name FullPath -Value $_.FullName
+		Add-Member -InputObject $DirectoryObject -MemberType NoteProperty -Name FolderDate -Value $dateInFolder
+		Add-Member -InputObject $DirectoryObject -MemberType NoteProperty -Name ShortDate -Value $ShortFolderDate
+		[VOID]$DirectoryArray.Add($DirectoryObject)
+	}
+	$DirectoryArray = $DirectoryArray | Sort-Object {[datetime]$_.FolderDate} -Descending
+	$HourliesToKeep = $DirectoryArray | Group-Object -Property ShortDate | Select-Object -First 7 | select -expandproperty group #hourlies. These aren't necessarily hourly, can be taken every few minutes if desired
+	$DailiesToKeep = $DirectoryArray | Group-Object -Property ShortDate | ForEach-Object { $_.Group[0] } | Select-Object -skip 7 -First 24 #this is actually useful for capturing the last backup of each day
+	$MonthliesToKeep = $DirectoryArray | Group-Object -Property { ($_.ShortDate -split '/')[1] } | ForEach-Object { $_.Group[0] }
+	#Perform steps to remove any old backups that aren't needed anymore. Keep all backups within last 7 days (even if last 7 days aren't contiguous). For the last 30 days, keep only the last backup taken on that day (Note that again, 30 days aren't necessarily contiguous). For all older backups, only keep the last backup taken that month.
+	foreach ($Folder in $DirectoryArray){
+		if ($MonthliesToKeep.FullPath -notcontains $Folder.FullPath -and $DailiesToKeep.FullPath -notcontains $Folder.FullPath -and $HourliesToKeep.FullPath -notcontains $Folder.FullPath){
+			$Folder | Add-Member -MemberType NoteProperty -Name KeepFolder -Value "Deleted"
+			Remove-Item -Path $Folder.FullPath -Recurse -Force
+			Write-verbose "Backup: Tidied up by removing $($Folder.FullPath)"
+			$Cleanup = $True
+		}
+		Else {
+			$Folder | Add-Member -MemberType NoteProperty -Name KeepFolder -Value $True
+		}
+	}
+	#Perform steps to Cleanup any empty directories.
+	Function IsDirectoryEmpty($directory) { #Function to check each directory and subdirectory to determine if it's actually empty.
+		$files = Get-ChildItem -Path $directory -File
+		if ($files.Count -eq 0) { #directory has no files in it, checking subdirectories.
+			$subdirectories = Get-ChildItem -Path $directory -Directory
+			foreach ($subdirectory in $subdirectories) {
+				if (-not (IsDirectoryEmpty $subdirectory.FullName)) {
+					return $false #subdirectory has files in it
+				}
+			}
+			return $true #directory is empty
+		}
+		return $false #directory has files in it.
+	}
+	$subdirectories = Get-ChildItem -Path $PathToSaveBackup -recurse -Directory
+	foreach ($subdirectory in $subdirectories) {
+		if (IsDirectoryEmpty $subdirectory.FullName) { # Check if the subdirectory is empty (no files)
+			Remove-Item -Path $subdirectory.FullName -Force -Recurse # Remove the subdirectory
+			Write-verbose "Backup: Deleted empty folder: $($subdirectory.FullName)"
+			$Cleanup = $True
+		}
+	}
+	if ($Cleanup -eq $True){
+		Write-verbose "Backup: Backup cleanup complete."
+	}
+	Else {
+		Write-verbose "Backup: No cleanup required."
 	}
 }
 Function SetQualityRolls {
@@ -1049,7 +1394,6 @@ Function CheckForModSavePath {
 					}
 					catch {
 						FormatFunction -Text "Using standard $SettingsOrCharString save path. Couldn't find Modinfo.json in '$($Config.GamePath)\Mods\$ModName\$ModName.mpq'" -IsWarning
-
 						start-sleep -milliseconds 1500
 					}
 				}
@@ -1087,10 +1431,10 @@ Function Options {
 	Clear-Host
 	Write-Host "`n This screen allows you to change script config options."
 	Write-Host " Note that you can also change these settings (and more) in config.xml."
-	Write-Host " Options you can change/toggle below:`n"
+	Write-Host " Options you can change/toggle below:"
 	CheckForModSavePath -CheckOnly
 	# Get all directories in the specified path, excluding "mods"
-	$D2rDirectories = Get-ChildItem -Path $CharacterSavePath -Directory | Where-Object { $_.Name -ne "mods" -and $_.Name -ne "backup"}
+	$D2rDirectories = Get-ChildItem -Path $CharacterSavePath -Directory | Where-Object {$_.Name -ne "mods" -and $_.Name -ne "backup" -and $_.Name -ne "backups"}
 	$NonEmptyDirectories = @()
 	foreach ($Directory in $D2rDirectories){
 		if ((Get-ChildItem -Path $directory.FullName -File -Filter "*.d2s").Count -eq 0){#Check if there are any folders with no .d2s files. If there is an 'empty' folder, this must be the Character set currently in use.
@@ -1110,16 +1454,17 @@ Function Options {
 	write-host "`n  ------------------------------------------------------------------------- "
 	FormatFunction -indents 1 -SubsequentLineIndents 4 -text "Launch Arguments: (Currently '$X[38;2;255;165;000;22m$(if($Script:Config.CustomLaunchArguments -ne ''){$Script:Config.CustomLaunchArguments}else{'No launch parameters configured'})$X[0m')"
 	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m1$X[0m - $X[4m-seed - Launch with map seed$X[0m"
-	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m2$X[0m - $X[4m-enablerespec - Enable Infinite Respecs$X[0m"
-	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m3$X[0m - $X[4m-playersX - Set default players value on launch$X[0m"
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m2$X[0m - $X[4m-playersX - Set default players value on launch$X[0m"
+	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m3$X[0m - $X[4m-enablerespec - Enable Infinite Respecs$X[0m"
 	FormatFunction -indents 1 -SubsequentLineIndents 4 -text " $X[38;2;255;165;000;22m4$X[0m - $X[4m-resetofflinemaps - Enable rolling new maps on each new game$X[0m"
 	write-host "  ------------------------------------------------------------------------- "
 	write-host "  Other Options: "
 	Write-Host "   $X[38;2;255;165;000;22m5$X[0m - $X[4mShow/Hide Characters on main screen$X[0m" #Whitelist chars for main screen
 	Write-Host "   $X[38;2;255;165;000;22m6$X[0m - $X[4mManualSettingSwitcherEnabled$X[0m (Currently $X[38;2;255;165;000;22m$(if($Script:Config.ManualSettingSwitcherEnabled -eq 'True'){'Enabled'}else{'Disabled'})$X[0m)"
 	Write-Host "   $X[38;2;255;165;000;22m7$X[0m - $X[4mDisableVideos$X[0m (Currently $X[38;2;255;165;000;22m$($Script:Config.DisableVideos)$X[0m)"
+	Write-Host "   $X[38;2;255;165;000;22m8$X[0m - $X[4mBack Up Saved Game Folder$X[0m"
 	if ($null -ne $D2rDirectories){
-		Write-Host "   $X[38;2;255;165;000;22m8$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
+		Write-Host "   $X[38;2;255;165;000;22m9$X[0m - $X[4mSwap Character Packs$X[0m (Current Profile: $X[38;2;255;165;000;22m$CurrentProfile$X[0m)"
 	}
 	Write-Host "`n Enter one of the above options to change the setting."
 	Write-Host " Otherwise, press any other key to return to main menu... " -nonewline
@@ -1155,27 +1500,73 @@ Function Options {
 				Write-Host "   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
 				$AcceptableOptions = $OptionsList.keys
 				$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27).tostring()
-				if ($NewOptionValue -notin $AcceptableOptions + "c" + "Esc"){
+				$NewValue = $($OptionsList[$NewOptionValue])
+				if ($NewOptionValue -eq "c"){
+					break
+				}
+				if ($NewOptionValue -notin $AcceptableOptions + "Esc"){
 					Write-Host "   Invalid Input. Please enter one of the options above.`n" -foregroundcolor red
-					$NewValue = $($OptionsList[$NewOptionValue])
-					if ($Option -eq "1"){# if option is for changing seed, we need a sub option to obtain seed number.
-						$customLaunchArguments = $config.SelectSingleNode("//CustomLaunchArguments")
-						$pattern = "-seed \d{1,}" # Matches "-seed " followed by one or more digits
-						if ($customLaunchArguments.InnerText -match $pattern){
-							$newSeedValue = ""
-							$customLaunchArguments.InnerText = $customLaunchArguments.InnerText -replace $pattern, $newSeedValue		
+				}
+				if ($Option -in @("1","2","3","4")){# if option is for Changing custom launch parameters, we need a sub option to obtain seed number.
+					$customLaunchArguments = $config.SelectSingleNode("//CustomLaunchArguments")	
+					if ($Option -in @("1","2")){
+						Function GetNumber {
+							if ($Option -eq "1"){
+								$Type = "seed"
+								$Message = "Enter the seed you want to use"
+								$RangeMax = 4294967294
+							}
+							Elseif ($Option -eq "2"){
+								$Type = "player count"
+								$Message = "Enter the players count you want the game to default to"
+								$RangeMax = 8
+							}
+							do {
+								$NumberInput = Read-Host "   Enter a number between 1 and $RangeMax"
+								$ParsedNumber = $Null
+								if ([long]::TryParse($NumberInput, [ref]$ParsedNumber) -and $ParsedNumber -ge 1 -and $ParsedNumber -le $RangeMax) {# Try to parse the input as an integer and ensure it's valid input (a number) within the range
+									break
+								}
+								else {
+									Write-Host "   Invalid $type. Please enter a valid number between 1 and $RangeMax." -ForegroundColor Red
+								}
+							} while ($true)
+							$Parameter = [string]$($OptionsList[$NewOptionValue])
+							return "$Parameter$ParsedNumber"
+						}
+					}
+					if ($customLaunchArguments.InnerText -match $pattern){ #Remove/Edit config - If current config matches pattern, it must already exist.
+						$newSubValue = ""
+						if ($Option -in @("1","2")){
+							if ($NewOptionValue -eq "2"){ #if sub menu option for seed or player count.
+								$newSubValue = GetNumber
+							}
+						}
+						$customLaunchArguments.InnerText = $customLaunchArguments.InnerText -replace $pattern, $newSubValue
+					}
+					else { #Add config
+						if ($Option -in @("1","2")){
+							$newSubValue = GetNumber
 						}
 						else {
-							do {
-								$SeedNumber = Read-host "Enter the seed you want to use"
-								if ($SeedNumber -eq "" -or $null -eq $SeedNumber -or $SeedNumber -notmatch '^\d+$'){
-									write-host "`n  Invalid Seed. Enter a number.`n" -foregroundcolor red
-								}
-							} until ($SeedNumber -ne "" -and $null -ne $SeedNumber -and $SeedNumber -match '^\d+$')
-							$newSeedValue = "-seed $SeedNumber"
-							$customLaunchArguments.InnerText = $customLaunchArguments.InnerText -replace $pattern, $newSeedValue
+							$newSubValue = [string]$($OptionsList[$NewOptionValue])
 						}
-						$NewValue = $($customLaunchArguments.InnerText)
+						$customLaunchArguments.InnerText += " " + $newSubValue
+					}
+					$NewValue = ($customLaunchArguments.InnerText -replace "  ", " ").trim()
+				}
+				ElseIf ($Option -eq "8"){
+					if ($NewOptionValue -eq "2"){
+						if (LocalBackup -eq "Skipped"){
+							start-sleep -milliseconds 2800 #If it was skipped allow short time for the message to appear before refreshing screen
+						}
+						return $False
+					}
+					elseif ($NewOptionValue -eq "3"){
+						if (CloudBackupSetup -eq $True){
+							PressTheAnyKey
+						}
+						return $false
 					}
 				}
 			}
@@ -1197,26 +1588,156 @@ Function Options {
 		else {
 			Return $False
 		}
-	}
-	If ($Option -eq "1"){ #SinglePlayerLaunch Options to add/remove from custom launch arguments eg seed, nosave, enablerespec, playersX, resetofflinemaps 
+	} #end of OptionSubMenu function
+	If ($Option -eq "1"){ #custom map seed - SinglePlayerLaunch Options to add/remove from custom launch arguments
+		$Pattern = "-seed \d{1,}" # Matches "-seed " followed by one or more digits
 		If ($Script:Config.CustomLaunchArguments -notmatch "-seed "){
-			$Options = @{"1" = "Placeholder only"}
+			$Options = @{"1" = "-seed "}
 			$OptionsSubText = "enable"
-			$CurrentState = "Disabled"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
 		}
 		Else {
-			$Options = @{"1" = "Placeholder only"}
+			$Options = @{"1" = "PlaceholderValue Only :)";"2" = "-seed "}	
+			if ($Script:Config.CustomLaunchArguments -match "-seed (\d+)"){
+				$Seed = $matches[1]
+			}
+			$ExtraOptionsText = "Choose '$X[38;2;255;165;000;22m2$X[0m' to change seed (Currently $X[38;2;255;165;000;22m$Seed$X[0m)`n"
 			$OptionsSubText = "disable"
-			$CurrentState = "Enabled"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
 		}
-
 		$XMLChanged = OptionSubMenu -ConfigName "CustomLaunchArguments" -OptionsList $Options -Current $CurrentState `
 		-Description "Choose to $OptionsSubText launching with a specified map seed for the game." `
-		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText launching with a custom map seed.`n"
-		#-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to launch with a custom map Seed`nChoose '$X[38;2;255;165;000;22m2$X[0m' to enable infinite respecs.`nChoose '$X[38;2;255;165;000;22m3$X[0m' to set playersX on launch.`nChoose '$X[38;2;255;165;000;22m4$X[0m' to generate new maps on joining the game (same behaviour as online)"
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText launching with a custom map seed.`n$ExtraOptionsText"
+	}
+	If ($Option -eq "2"){ #playersX - SinglePlayerLaunch Options to add/remove from custom launch arguments
+		$Pattern = "-players \d{1,}" # Matches "-players " followed by one or more digits
+		If ($Script:Config.CustomLaunchArguments -notmatch "-players"){
+			$Options = @{"1" = "-players "}
+			$OptionsSubText = "enable"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
+		}
+		Else {
+			$Options = @{"1" = "PlaceholderValue Only :)";"2" = "-players "}	
+			if ($Script:Config.CustomLaunchArguments -match "-players (\d+)"){
+				$PlayerCount = $matches[1]
+			}
+			$ExtraOptionsText = "Choose '$X[38;2;255;165;000;22m2$X[0m' to change the player count (Currently $X[38;2;255;165;000;22m$PlayerCount$X[0m)`n"
+			$OptionsSubText = "disable"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
+		}
+		$XMLChanged = OptionSubMenu -ConfigName "CustomLaunchArguments" -OptionsList $Options -Current $CurrentState `
+		-Description "Choose to $OptionsSubText launching with the game with /playersX already set. Saves you having to type out the same thing at launch :)" `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText launching with /playersX.`n$ExtraOptionsText"
+	}
+	If ($Option -eq "3"){ #enablerespec - SinglePlayerLaunch Options to add/remove from custom launch arguments
+		$Pattern = "-enablerespec" # Matches "-enablerespec"
+		if ($Script:Config.CustomLaunchArguments -notmatch "-enablerespec"){
+			$Options = @{"1" = "-enablerespec"}
+			$OptionsSubText = "enable"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
+		}
+		Else {
+			$Options = @{"1" = "PlaceholderValue Only :)"}
+			$OptionsSubText = "disable"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
+		}
+		$XMLChanged = OptionSubMenu -ConfigName "CustomLaunchArguments" -OptionsList $Options -Current $CurrentState `
+		-Description "Choose to $OptionsSubText launching with the ability to respec an unlimited amount of times." `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText infinite respecs.`n"
+	}
+	If ($Option -eq "4"){ #resetofflinemaps  - SinglePlayerLaunch Options to add/remove from custom launch arguments
+		$Pattern = "-resetofflinemaps" # Matches "-resetofflinemaps "
+		if ($Script:Config.CustomLaunchArguments -notmatch "-resetofflinemaps"){
+			$Options = @{"1" = "-resetofflinemaps"}
+			$OptionsSubText = "enable"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
+		}
+		Else {
+			$Options = @{"1" = "PlaceholderValue Only :)"}
+			$OptionsSubText = "disable"
+			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
+		}
+		$XMLChanged = OptionSubMenu -ConfigName "CustomLaunchArguments" -OptionsList $Options -Current $CurrentState `
+		-Description "Choose to $OptionsSubText launching with the game where the maps are reset/rerolled for each new game you make (same that happens with online play)." `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to generate new maps on joining the game (same behaviour as online).`n"
 	}
 	If ($Option -eq "5"){ #Whitelist
-		#TODO
+		$Script:CharactersCSV = @(Import-Csv -Path "$Script:WorkingDirectory\characters.csv")
+		$LongestCharNameLength = $Script:CharactersCSV | ForEach-Object { $_.CharacterName.Length } | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum #find out how many batches there are so table can be properly indented.
+		Do {
+			$HeaderIndent += " "
+		} Until ($HeaderIndent.length -ge ($LongestCharNameLength - 14))
+		if (($Script:CharactersCSV.count) -ge 10){$IDIndent = " "}
+		if (($Script:CharactersCSV.count) -ge 100){$IDIndent = "  "}
+		
+		formatfunction -indent 1 -text "On this screen you can toggle which characters you want to have shown on the scripts main display screen.`nYou can also edit this directly (better for bulk editgs) by editing the characters.csv file."
+		write-host "`n  $X[4m#$X[0m $IDIndent  $X[4mCharacter Name$X[0m  $HeaderIndent $X[4mShow/Hide$X[0m   |   $X[4m#$X[0m $IDIndent  $X[4mCharacter Name$X[0m  $HeaderIndent $X[4mShow/Hide$X[0m"
+		$Counter = 0
+		$DoCount = 0
+		foreach ($Character in $Script:CharactersCSV){
+			$Character | Add-Member -NotePropertyName TemporaryID -NotePropertyValue (++$Counter)
+			$Indent = ""
+			$CountIndent = ""
+			$DoCount++
+			Do {
+				$Indent += " "
+			} Until (($Indent.length + $Character.CharacterName.length) -ge $LongestCharNameLength + 1)
+			if ($Counter -le 9)     {$CountIndent = "  "}
+			elseif ($Counter -le 99){$CountIndent = " "}
+			elseif ($Counter -gt 99){$CountIndent = ""}
+			if ($DoCount -eq 1){
+				write-host "  $Counter $CountIndent $($Character.CharacterName) $Indent " -nonewline
+				if( $Character.ShowOnDisplayScreen -eq 'Show'){
+					write-host "$X[38;2;000;255;000;22m$($Character.ShowOnDisplayScreen)$X[0m" -nonewline
+				}
+				Else {
+					write-host "$X[38;2;255;000;000;22m$($Character.ShowOnDisplayScreen)$X[0m" -nonewline
+				}
+			}
+			Else {
+				write-host "        |   $Counter $CountIndent $($Character.CharacterName) $Indent " -nonewline
+				if ($Character.ShowOnDisplayScreen -eq 'Show'){
+					write-host "$X[38;2;000;255;000;22m$($Character.ShowOnDisplayScreen)$X[0m"
+				}
+				Else {
+					write-host "$X[38;2;255;000;000;22m$($Character.ShowOnDisplayScreen)$X[0m"
+				}
+				$DoCount = 0
+			}
+		}
+		if ($Counter % 2 -eq 1) {#if $counter finished on an odd number
+			write-host "        |"
+		}
+		write-host
+		if ($Script:CharactersCSV.count -gt 10){ #will only work for first 99 accounts. CBF adding logic for over 100 single player accounts lol.
+			Write-Host "   Type the number of the account you want to toggle or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline #user will need to press enter
+			$ToggleCharacter = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27 -TwoDigitAcctSelection $True).tostring()
+		}
+		Else {
+			Write-Host "   Press the number of the account you want to toggle: " -nonewline
+			$ToggleCharacter = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27).tostring()
+		}
+		$CharacterName = ($Script:CharactersCSV | Where-Object {$_.TemporaryID -eq $ToggleCharacter}).CharacterName
+		foreach ($Character in $Script:CharactersCSV) {
+			$Character.PSObject.Properties.Remove("TemporaryID")
+		}
+		$Script:CharactersCSV = import-csv "$Script:WorkingDirectory\characters.csv"
+		if ($CharacterName){
+			$CharacterToToggle = $Script:CharactersCSV | Where-Object {$_.CharacterName -eq $CharacterName}
+			if ($CharacterToToggle.ShowOnDisplayScreen -eq "Hide"){
+				$CharacterToToggle.ShowOnDisplayScreen = "Show"
+				write-host "    $CharacterName set to $X[38;2;000;255;000;22mshow$X[0m on display screen.`n"	
+			}
+			Else {
+				$CharacterToToggle.ShowOnDisplayScreen = "Hide"
+				write-host "    $CharacterName set to $X[38;2;255;000;000;22mhide$X[0m on display screen.`n"
+			}
+			start-sleep -milliseconds 2400
+		}
+		if ($Null -ne $CharacterToToggle){
+			$Script:CharactersCSV | Export-Csv -Path "$Script:WorkingDirectory\characters.csv" -NoTypeInformation
+		}
+
 	}
 	ElseIf ($Option -eq "6"){ #ManualSettingSwitcherEnabled
 		If ($Script:Config.ManualSettingSwitcherEnabled -eq "False"){
@@ -1237,19 +1758,34 @@ Function Options {
 	ElseIf ($Option -eq "7"){ #DisableVideos
 		If ($Script:Config.DisableVideos -eq "False"){
 			$Options = @{"1" = "True"}
-			$OptionsSubText = "enable"
-			$CurrentState = "Disabled"
+			$OptionsSubText = "disable videos" #less confusing than simply saying "enable" disablevideos
+			$CurrentState = "Videos Enabled"
 		}
 		Else {
 			$Options = @{"1" = "False"}
-			$OptionsSubText = "disable"
-			$CurrentState = "Enabled"
+			$OptionsSubText = "enable videos" #less confusing than simply saying "disable" disablevideos
+			$CurrentState = "Videos Disabled"
 		}
 		$XMLChanged = OptionSubMenu -ConfigName "DisableVideos" -OptionsList $Options -Current $CurrentState `
 		-Description "This enables you to disable intro videos and videos in between each act." `
 		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
 	}
-	ElseIf ($Option -eq "8" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
+	ElseIf ($Option -eq "8"){#Backup
+		If ($Script:Config.AutoBackup -eq "False"){
+			$Options = @{"1" = "True";"2" = "PlaceholderValue Only :)";"3" = "PlaceholderValue Only :)"}
+			$OptionsSubText = "enable"
+			$CurrentState = "Disabled"
+		}
+		Else {
+			$Options = @{"1" = "False";"2" = "PlaceholderValue Only :)";"3" = "PlaceholderValue Only :)"}
+			$OptionsSubText = "disable"
+			$CurrentState = "Enabled"
+		}
+		$XMLChanged = OptionSubMenu -ConfigName "AutoBackup" -OptionsList $Options -Current $CurrentState `
+		-Description "This enables you to disable intro videos and videos in between each act." `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`nChoose '$X[38;2;255;165;000;22m2$X[0m' to make a manual backup`nChoose '$X[38;2;255;165;000;22m3$X[0m' to make Cloud Backup Setup`n"		
+	}
+	ElseIf ($Option -eq "9" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
 		$CurrentD2rSaveFiles = Get-ChildItem -Path "$CharacterSavePath" -Filter "*.d2s" -File
 		$OptionsList = @{}
 		For ($iterate = 0; $iterate -lt $NonEmptyDirectories.Count; $iterate ++) {
@@ -1299,6 +1835,9 @@ Function Options {
 	if ($XMLChanged -eq $True){
 		Write-Host "   Config Updated!" -foregroundcolor green
 		ImportXML
+		If ($Option -eq "7"){
+			DisableVideos
+		}
 		start-sleep -milliseconds 2500
 	}
 }
@@ -1472,17 +2011,17 @@ Function KillHandle { #Thanks to sir-wilhelm for tidying this up.
 Function CheckActiveCharacters {#Note: only works for accounts loaded by the script
 	#check if there's any open instances and check the game title window for which account is being used.
 	try {
-		$Script:ActiveIDs = $Null
+		$ActiveSinglePlayerInstance = $Null
 		$D2rRunning = $false
-		$Script:ActiveIDs = New-Object -TypeName System.Collections.ArrayList
-		$Script:ActiveIDs = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "Diablo II: Resurrected \(SP\)"} | Select-Object MainWindowTitle).mainwindowtitle.trim()
+		$ActiveSinglePlayerInstance = New-Object -TypeName System.Collections.ArrayList
+		$ActiveSinglePlayerInstance = (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "Diablo II: Resurrected \(SP\)"} | Select-Object MainWindowTitle).mainwindowtitle.trim()
 		$Script:D2rRunning = $true
 		Write-Verbose "Running Instances."
 	}
 	catch {#if the above fails then there are no running D2r instances.
 		$Script:D2rRunning = $false
 		Write-Verbose "No Running Instances."
-		$Script:ActiveIDs = ""
+		$ActiveSinglePlayerInstance = ""
 	}
 	if ($Script:D2rRunning -eq $True){ 
 		$CurrentTime = get-date
@@ -1573,6 +2112,12 @@ Function Menu {
 	Menu
 }
 Function ChooseAccount {
+	if ($Script:Config.AutoBackup -eq $True){
+		$CurrentTime = Get-Date
+		if ($CurrentTime.Minute -eq 0 -or $CurrentTime.Minute -eq 30) {
+			LocalBackup #Run a backup if the time is exactly on a 30 minute mark.
+		}
+	}
 	do {
 		if ($Script:MainMenuOption -eq "i"){
 			Inventory #show stats
@@ -1644,10 +2189,10 @@ Function ChooseAccount {
 		GetCharacters
 		CheckActiveCharacters
 		DisplayCharacters
-		$OpenD2LoaderInstances = Get-WmiObject -Class Win32_Process | Where-Object { $_.name -eq "powershell.exe" -and $_.commandline -match $Script:ScriptFileName} | Select-Object name,processid,creationdate | Sort-Object creationdate -descending
-		if ($OpenD2LoaderInstances.length -gt 1){#If there's more than 1 D2loader.ps1 script open, close until there's only 1 open to prevent the time played accumulating too quickly.
-			ForEach ($Process in $OpenD2LoaderInstances[1..($OpenD2LoaderInstances.count -1)]){
-				Stop-Process -id $Process.processid -force #Closes oldest running d2loader script
+		$OpenD2rSPLoaderInstances = Get-WmiObject -Class Win32_Process | Where-Object { $_.name -eq "powershell.exe" -and $_.commandline -match $Script:ScriptFileName} | Select-Object name,processid,creationdate | Sort-Object creationdate -descending
+		if ($OpenD2rSPLoaderInstances.length -gt 1){#If there's more than 1 D2rSPloader.ps1 script open, close until there's only 1 open to prevent the time played accumulating too quickly.
+			ForEach ($Process in $OpenD2rSPLoaderInstances[1..($OpenD2rSPLoaderInstances.count -1)]){
+				Stop-Process -id $Process.processid -force #Closes oldest running D2rSPLoader script
 			}
 		}
 		if ($Script:ActiveCharacter){#if there is an active character, add to total script time
@@ -1715,7 +2260,12 @@ Function ChooseAccount {
 			}
 			$Script:MainMenuOption = ReadKeyTimeout "" $MenuRefreshRate "r" -AdditionalAllowedKeys 13 #$MenuRefreshRate represents the refresh rate of the menu in seconds (30). if no button is pressed, send "r" for refresh.
 			if ($script:key.virtualkeycode -eq "13"){
-				$Script:MainMenuOption = "p"
+				if ($Null -eq (Get-Process | Where-Object {$_.processname -eq "D2r" -and $_.MainWindowTitle -match "Diablo II: Resurrected \(SP\)"})){
+					$Script:MainMenuOption = "p"
+				}
+				else {
+					$Script:MainMenuOption = "r"
+				}
 			}
 			if ($Script:MainMenuOption -notin ("x" + "r" + "g" + "i" + "o" + "p" + $ManualSettingSwitcherOption).ToCharArray()){
 				Write-Host " Invalid Input. Please enter one of the options above." -foregroundcolor red
@@ -1878,6 +2428,7 @@ InitialiseCurrentStats
 #CheckForUpdates
 ImportXML
 ValidationAndSetup
+DisableVideos
 ImportCSV
 Clear-Host
 QuoteList
