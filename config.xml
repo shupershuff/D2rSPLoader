@@ -1,5 +1,5 @@
 <!--D2Loader Config-->
-<D2loaderconfig>
+<D2SPLLoaderConfig>
 	<!--Default Gamepath. The below is the default install path, change this if you've installed somewhere different.-->
 	<GamePath>C:\Program Files (x86)\Diablo II Resurrected</GamePath>
 	
@@ -21,6 +21,9 @@
 	<!--Make sure game always starts in Windowed mode rather than full screen. Note that this seems to cause issues remembering your last window size. Recommend leaving false-->
 	<ForceWindowedMode>False</ForceWindowedMode>
 	
+	<!--Backup Character files every half hour-->
+	<AutoBackup>False</AutoBackup>
+	
 	<!--Disable Intro videos and videos in between each act.-->
 	<DisableVideos>True</DisableVideos>
 
@@ -29,4 +32,4 @@
 	Any setting file with a number after it will not be an available option (eg settings1.json will not be an option).
 	To make settings option, you can load from, call the file settings.<name>.json eg(settings.Awesome Graphics.json) which will appear as "Awesome Graphics" in the menu.-->
 	<ManualSettingSwitcherEnabled>False</ManualSettingSwitcherEnabled>
-</D2loaderconfig>
+</D2SPLoaderConfig>
