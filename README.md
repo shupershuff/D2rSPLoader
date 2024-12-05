@@ -1,8 +1,8 @@
 # Overview
-A cutdown version of D2rLoader specifically aimed at tracking time spent on offline characters. Useful for tracking total time spent across each character on Grail :)
+A cutdown version of D2rLoader specifically aimed at providing features for single player.<br>
+Useful for tracking total time spent across each character on Grail :)
 <br>
-![image](https://github.com/user-attachments/assets/95e7b222-3adf-435f-aa22-f9071db5c09a)<br>
-
+![image](https://github.com/user-attachments/assets/ab3bed8e-a493-4472-b113-48d2eb970500)<br>
 
 ## Features
 Work in progress but plan to enable the following features:
@@ -15,14 +15,15 @@ Work in progress but plan to enable the following features:
 - Ability to show only characters your interested in on main screen (allows you to hide mules from display)
 - Ability to set launch options for seed, enablerespec, playersX, resetofflinemaps.
 
-**Swap Character Sets**<br>
+### Swap Character Sets
 Load/Unload Save game sets (eg if switching between Grail characters and edited test characters).<br>
 This works by looking in subfolders within your saved game folder (excluding folders called backups or mods) for D2r save game files (.d2s) and allows you to swap these out.<br>
 Note that character names should be unique if you want to ensure play time tracking for the character is accurate.<br>
 
-**Backup**<br>
-Local Backups - Ability to manually or automatically backup your save game files into "C:\Users\\%USERNAME%\Saved Games\Diablo II Resurrected\Backups". Uses my repurposed [Offline Backup script](https://github.com/shupershuff/FolderBackup)<br><br>
-Cloud Backups - Setup wizard in script to allow save games folder to be backed up to the cloud. This is handy if your computer explodes or if you want to play the same characters across different devices.<br>
+### Backup
+**Local Backups** - Ability to manually or automatically backup your save game files into "C:\Users\\%USERNAME%\Saved Games\Diablo II Resurrected\Backups". Uses my repurposed [Offline Backup script](https://github.com/shupershuff/FolderBackup)<br><br>
+**Cloud Backups** - Setup wizard in script to allow save games folder to be backed up to the cloud.<br>
+This is handy if your computer explodes or if you want to play the same characters across different devices.<br>
 Uses my [D2rSinglePlayerBackup script](https://github.com/shupershuff/D2rSinglePlayerBackup). 
 
 # Setup Steps
@@ -67,13 +68,16 @@ Some of the above options can be set within the scripts option menu also. Make s
 4. This will perform the first time setup to compile settext.exe, populate characters.csv and create a shortcut on your desktop.
 5. All of your characters will be shown by default. You can choose to hide accounts in bulk by editing characters.csv (make sure to close script first) or one by one by using the options menu:
 ![image](https://github.com/user-attachments/assets/ec4fa3bc-feeb-450d-9d4f-aed22b9400c2)<br>
+<br>
+
+Tip: If you struggle editing CSV files in text editors like notepad or notepad++, try editing in Excel or [ModernCSV](https://www.moderncsv.com/) (free CSV app).
 
 ## 4. Manual Settings Switcher (Optional)
 Do you want to manually choose which settings to use when launching the game? This is for you! This feature is disabled by default, as this needs to be setup first and understood this first.<br>
 <br>
 To enable this feature in the setting 'ManualSettingSwitcherEnabled' must be set to True. You can do this from the options menu or from editing the [config file](#2-script-config-mostly-optional).
 
-**Setting up alternate Game settings to switch too**.<br>
+**Setting up alternate Game settings to switch too** <br>
 1. Set 'ManualSettingSwitcherEnabled' to True in your [config file](#2-script-config-mostly-optional) or from the options menu in the script.
 2. Launch the Game (via the Loader or via Bnet client, doesn't matter).
 3. Make the required graphics/audio/game changes via the menu.
@@ -81,9 +85,37 @@ To enable this feature in the setting 'ManualSettingSwitcherEnabled' must be set
 5. Browse to "C:\Users\\\<yourusername>\Saved Games\Diablo II Resurrected"
 6. Copy the Settings.json file and paste into the same folder.
 7. Rename this copied file to Settings._name_.json (eg ensure the name is inside two fullstops eg settings.1440pHigh.json or settings.PotatoGraphics.json)
-8. Press S on the main screen of the loader to enable prompting for settings. 
+8. Press 'S' on the main screen of the loader to enable prompting for settings. 
 9. Launch the game via the loader, choose settings and proceed find all of the high runes. All of them.
+
+## 5. Setting up alternate character sets to switch too/from
+This is useful if you want to setup alternate character sets (eg have a set of characters for testing builds separate from your legitimate characters).<br>
+To setup, create a folder in your D2r saved game folder and cut and paste (don't copy) the users into it.<br>
+Folder example could be "C:\Users\\%USERNAME%\Saved Games\Diablo II Resurrected\Testing Characters"<br>
 <br>
+If setup, the menu will show an option for it allowing you to switch:<br>
+![image](https://github.com/user-attachments/assets/85d93e70-dac1-44c8-a5b7-06ce8475ee6f)<br>
+
+# Notes #
+- You will need to connect online once every 30 days (to update your cookie.bin file) otherwise your game will give you an error that more or less says 'you haven't been online in 30 days, please reconnect'.
+
+# Credit for things I stole #
+Mostly credits from [D2rLoader](https://github.com/shupershuff/Diablo2RLoader)
+- Handle64 tool (replaces process explorer aka procexp) - https://learn.microsoft.com/en-gb/sysinternals/downloads/handle
+- Set Text method: https://stackoverflow.com/questions/39021975/changing-title-of-an-application-when-launching-from-command-prompt/39033389#39033389
+  - After using the above for several months, I built my own to work with Process ID instead of process name for improved accuracy. Posted to the thread above.
+- Thanks to never147 for contributing improvements for menu refresh and inputs. Huge QOL feature and allowed for more features to be implemented.
+- Thanks to Sir-Wilhelm for tidying up Handle killer and providing code for resizing and relocating windows.
+- ChatGPT for helping with regex patterns.
+- Google.com for everything else.
+- Double Brown
+![image](https://github.com/user-attachments/assets/7e784a03-2875-456e-aab7-0c27576772e0)<br><br>
+
+Proudly made in NZ<br>
+![nzmade](https://github.com/shupershuff/Diablo2RLoader/assets/63577525/39e332b8-71cb-4149-8afd-2fcfdac14abf)
+![image](https://github.com/shupershuff/Diablo2RLoader/assets/63577525/746968fa-6be2-4846-bc62-850717d84daa)<br>
 <br>
+
+
 
 Page views as of 2nd Oct 2024:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fshupershuff%2FD2rSPLoader&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)<br>
