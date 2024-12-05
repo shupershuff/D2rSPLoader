@@ -14,7 +14,7 @@ Couldn't write :) in release notes without it adding a new line, some minor issu
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "1.0"
+$CurrentVersion = "1.0.0"
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -45,9 +45,10 @@ $Script:X = [char]0x1b #escape character for ANSI text colors
 $ProgressPreference = "SilentlyContinue"
 $Script:WorkingDirectory = ((Get-ChildItem -Path $PSScriptRoot)[0].fullname).substring(0,((Get-ChildItem -Path $PSScriptRoot)[0].fullname).lastindexof('\')) #Set Current Directory path.
 $Script:StartTime = Get-Date #Used for elapsed time. Is reset when script refreshes.
+$Script:LastBackup = $Script:StartTime.addminutes(-60)
 $Script:MOO = "%%%"
 $Script:JobIDs = @()
-$MenuRefreshRate = 30 #How often the script refreshes in seconds. This should be set to 30, don't change this please.
+$MenuRefreshRate = 10 #How often the script refreshes in seconds. This should be set to 30, don't change this please.
 $Script:ScriptFileName = Split-Path $MyInvocation.MyCommand.Path -Leaf #find the filename of the script in case a user renames it.
 $Script:SessionTimer = 0 #set initial session timer to avoid errors in info menu.
 $Script:NotificationHasBeenChecked = $False
@@ -57,6 +58,30 @@ $Script:AllowedKeyList += @(96,97,98,99,100,101,102,103,104,105) #0 to 9 on nump
 $Script:AllowedKeyList += @(65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90) # A to Z
 $Script:MenuOptions = @(65,66,67,68,71,73,74,79,82,83,84,88) #a, b, c, d, g, i, j, o, r, s, t and x. Used to detect singular valid entries where script can have two characters entered.
 $EnterKey = 13
+Function RemoveMaximiseButton { # I'm removing the maximise button on the script as sometimes I misclick maximise instead of minimise and it annoys me. Copied this straight out of ChatGPT lol.
+	Add-Type @"
+		using System;
+		using System.Runtime.InteropServices;
+		public class WindowAPI {
+			public const int GWL_STYLE = -16;
+			public const int WS_MAXIMIZEBOX = 0x10000;
+			public const int WS_THICKFRAME = 0x40000;  // Window has a sizing border
+			[DllImport("user32.dll")]
+			public static extern IntPtr GetForegroundWindow();
+			[DllImport("user32.dll", SetLastError = true)]
+			public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+			[DllImport("user32.dll", SetLastError = true)]
+			public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+		}
+"@
+	# Get the handle for the current window (PowerShell window)
+	$hWnd = [WindowAPI]::GetForegroundWindow()
+	# Get the current window style
+	$style = [WindowAPI]::GetWindowLong($hWnd, [WindowAPI]::GWL_STYLE)
+	# Disable the maximize button by removing the WS_MAXIMIZEBOX style. Also disable resizing the width.
+	$newStyle = $style -band -bnot ([WindowAPI]::WS_MAXIMIZEBOX -bor [WindowAPI]::WS_THICKFRAME)
+	[WindowAPI]::SetWindowLong($hWnd, [WindowAPI]::GWL_STYLE, $newStyle) | out-null
+}
 Function ReadKey([string]$message=$Null,[bool]$NoOutput,[bool]$AllowAllKeys){#used to receive user input
 	$Script:key = $Null
 	$Host.UI.RawUI.FlushInputBuffer()
@@ -943,7 +968,7 @@ Function CloudBackupSetup {
 	}
 }
 Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to rewrite to account for folder exclusions https://github.com/shupershuff/FolderBackup
-	Write-Host "   Backing up save games, please wait..." -foregroundcolor yellow
+	Write-Host "  Backing up save games, please wait..." -foregroundcolor yellow
 	CheckForModSavePath
 	$PathToBackup = $Script:CharacterSavePath
 	# Define the folders to exclude
@@ -1027,7 +1052,7 @@ Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to 
 	$PreviousHash = if (Test-Path $HashFilePath) { Get-Content $HashFilePath } else { "" }
 	$CurrentHash = Get-FolderHash -folderPath $PathToBackup
 	if ($CurrentHash -eq $PreviousHash) {
-		formatfunction -IsSuccess -indent 2 "Backup: Folder has not changed since the last backup. No backup will be made."	
+		formatfunction -IsSuccess -indent 1 "Backup: Folder has not changed since the last backup. No backup needs to be done."	
 		return "Skipped"
 	}
 	$destinationPath = Join-Path -Path $PathToSaveBackup -ChildPath "$year\$month\$day\$hour"
@@ -1053,7 +1078,7 @@ Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to 
 		}
 	}
 	Write-verbose "Backup: Save Data copied to: $destinationPath" 
-	write-host "   D2r Save Game data has been backed up :)" -ForegroundColor Green
+	write-host "  Backup: D2r Save Game data has been backed up :)" -ForegroundColor Green
 	start-sleep 1
 	$CurrentHash | Out-File -FilePath $HashFilePath -Force
 
@@ -2111,12 +2136,6 @@ Function Menu {
 	Menu
 }
 Function ChooseAccount {
-	if ($Script:Config.AutoBackup -eq $True){
-		$CurrentTime = Get-Date
-		if ($CurrentTime.Minute -eq 0 -or $CurrentTime.Minute -eq 30) {
-			LocalBackup #Run a backup if the time is exactly on a 30 minute mark.
-		}
-	}
 	do {
 		if ($Script:MainMenuOption -eq "i"){
 			Inventory #show stats
@@ -2184,6 +2203,15 @@ Function ChooseAccount {
 			Notifications -check $True
 			BannerLogo
 			QuoteRoll
+		}
+		if ($Script:Config.AutoBackup -eq $True){
+			$CurrentTime = Get-Date
+			if ($CurrentTime.Minute -eq 0 -or $CurrentTime.Minute -eq 30) {
+				if ($currenttime.addminutes(-1) -ge $lastbackup) { #if a backup hasn't just happened. (prevents two backups happening in a minute).
+					$null = LocalBackup #Run a backup if the time is exactly on a 30 minute mark.
+					$Script:LastBackup = $CurrentTime
+				}
+			}
 		}
 		GetCharacters
 		CheckActiveCharacters
@@ -2423,8 +2451,9 @@ Function Processing {
 		Remove-Job *
 	}
 }
+RemoveMaximiseButton
 InitialiseCurrentStats
-CheckForUpdates
+#CheckForUpdates
 ImportXML
 ValidationAndSetup
 DisableVideos
