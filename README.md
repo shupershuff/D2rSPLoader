@@ -71,7 +71,7 @@ Some of the above options can be set within the scripts option menu also. Make s
 ## 4. Manual Settings Switcher (Optional)
 Do you want to manually choose which settings to use when launching the game? This is for you! This feature is disabled by default, as this needs to be setup first and understood this first.<br>
 <br>
-To enable this feature in the setting 'ManualSettingSwitcherEnabled' must be set to True. You can do this from the options menu or from editing the .
+To enable this feature in the setting 'ManualSettingSwitcherEnabled' must be set to True. You can do this from the options menu or from editing the [config file](#2-script-config-mostly-optional).
 
 **Setting up alternate Game settings to switch too**.<br>
 1. Set 'ManualSettingSwitcherEnabled' to True in your [config file](#2-script-config-mostly-optional) or from the options menu in the script.
