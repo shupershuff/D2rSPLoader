@@ -2453,7 +2453,7 @@ Function Processing {
 }
 RemoveMaximiseButton
 InitialiseCurrentStats
-#CheckForUpdates
+CheckForUpdates
 ImportXML
 ValidationAndSetup
 DisableVideos
