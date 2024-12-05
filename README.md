@@ -1,5 +1,8 @@
 # Overview
 A cutdown version of D2rLoader specifically aimed at tracking time spent on offline characters. Useful for tracking total time spent across each character on Grail :)
+<br>
+![image](https://github.com/user-attachments/assets/95e7b222-3adf-435f-aa22-f9071db5c09a)<br>
+
 
 ## Features
 Work in progress but plan to enable the following features:
@@ -62,6 +65,8 @@ Some of the above options can be set within the scripts option menu also. Make s
    e) Run the D2rSPLoader.ps1 script again.<br>
 3. If the script prompts to trust it and add it to the unblock list, type in y and press enter to confirm.
 4. This will perform the first time setup to compile settext.exe, populate characters.csv and create a shortcut on your desktop.
+5. All of your characters will be shown by default. You can choose to hide accounts in bulk by editing characters.csv (make sure to close script first) or one by one by using the options menu:
+![image](https://github.com/user-attachments/assets/ec4fa3bc-feeb-450d-9d4f-aed22b9400c2)<br>
 
 ## 4. Manual Settings Switcher (Optional)
 Do you want to manually choose which settings to use when launching the game? This is for you! This feature is disabled by default, as this needs to be setup first and understood this first.<br>
