@@ -25,7 +25,7 @@
 	<AutoBackup>False</AutoBackup>
 	
 	<!--Disable Intro videos and videos in between each act.-->
-	<DisableVideos>True</DisableVideos>
+	<DisableVideos>False</DisableVideos>
 
 	<!--Can be used standalone or in conjunction with the standard setting switcher above.
 	This enables the menu option to enter 's' and manually pick between settings config files. Use this if you want to select Awesome or Poo graphics settings for an account.
