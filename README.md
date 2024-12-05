@@ -21,10 +21,14 @@ This works by looking in subfolders within your saved game folder (excluding fol
 Note that character names should be unique if you want to ensure play time tracking for the character is accurate.<br>
 
 ### Backup
-**Local Backups** - Ability to manually or automatically backup your save game files into "C:\Users\\%USERNAME%\Saved Games\Diablo II Resurrected\Backups". Uses my repurposed [Offline Backup script](https://github.com/shupershuff/FolderBackup)<br><br>
+**Local Backups** - Ability to manually or automatically backup your save game files into "C:\Users\\%USERNAME%\Saved Games\Diablo II Resurrected\Backups". Uses my repurposed [Offline Backup script](https://github.com/shupershuff/FolderBackup)<br>
+![image](https://github.com/user-attachments/assets/5249f260-6908-47c1-aee4-0f916f83a9e9)<br>
+<br>
 **Cloud Backups** - Setup wizard in script to allow save games folder to be backed up to the cloud.<br>
 This is handy if your computer explodes or if you want to play the same characters across different devices.<br>
-Uses my [D2rSinglePlayerBackup script](https://github.com/shupershuff/D2rSinglePlayerBackup). 
+Uses my [D2rSinglePlayerBackup script](https://github.com/shupershuff/D2rSinglePlayerBackup).<br>
+![image](https://github.com/user-attachments/assets/16d35492-e644-40a7-b2fb-f9e0a106b84f)
+
 
 # Setup Steps
 This has a much easier setup than Diablo2RLoader as this is an offline script and as such doesn't need any accounts added.<br>
