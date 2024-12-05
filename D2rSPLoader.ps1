@@ -6,16 +6,15 @@ Happy for you to make any modifications to this script for your own needs provid
 - Any variants of this script published online should always be open source.
 Purpose:
 	Script is mainly orientated around tracking character playtime and total game time for single player.
-	Script will import account details from CSV.
+	Script will track character details from CSV.
 Instructions: See GitHub readme https://github.com/shupershuff/D2rSPLoader
-
 
 1.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "0.6" #single player edit, adjusted shortcut.
+$CurrentVersion = "1.0"
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -1575,7 +1574,7 @@ Function Options {
 			try {
 				$Pattern = "(<$ConfigName>)([^<]*)(</$ConfigName>)"
 				$ReplaceString = '{0}{1}{2}' -f '${1}', $NewValue, '${3}'
-				$NewXML = [regex]::Replace($Xml, $Pattern, $ReplaceString)
+				$NewXML = ([regex]::Replace($Xml, $Pattern, $ReplaceString)).trim()
 				$NewXML | Set-Content -Path "$Script:WorkingDirectory\Config.xml"
 				return $True
 			}
@@ -2425,7 +2424,7 @@ Function Processing {
 	}
 }
 InitialiseCurrentStats
-#CheckForUpdates
+CheckForUpdates
 ImportXML
 ValidationAndSetup
 DisableVideos
