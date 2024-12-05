@@ -1,18 +1,17 @@
 # Overview
-A cutdown version of D2rLoader specifically aimed at providing features for single player.<br>
+A cutdown version of [D2rLoader](https://github.com/shupershuff/Diablo2RLoader) specifically aimed at providing features for single player.<br>
 Useful for tracking total time spent across each character on Grail :)
 <br>
 ![image](https://github.com/user-attachments/assets/ab3bed8e-a493-4472-b113-48d2eb970500)<br>
 
 ## Features
-Work in progress but plan to enable the following features:
 **Main features**
-- Track time spent per character by assessing save game files for changes
-- Launches in offline mode for those who want to help their mates fill games online but still play single player (uses parameter '-region xxx')
-- Option to skip intro videos and in game videos (works with mods or if using -direct -txt)
+- Track time spent per character by assessing save game files for changes.
+- Launches in offline mode for those who want to help their mates fill games online but still play single player (uses parameter '-region xxx').
+- Option to skip intro videos and in game videos (works with mods or if using -direct -txt).
 - Ability to start Grail App of your choosing (if not already running at game launch).
 - Ability to start Run timer app of your choosing (if not already running at game launch).
-- Ability to show only characters your interested in on main screen (allows you to hide mules from display)
+- Ability to show only characters your interested in on main screen (allows you to hide mules from display).
 - Ability to set launch options for seed, enablerespec, playersX, resetofflinemaps.
 
 ### Swap Character Sets
@@ -28,7 +27,6 @@ Note that character names should be unique if you want to ensure play time track
 This is handy if your computer explodes or if you want to play the same characters across different devices.<br>
 Uses my [D2rSinglePlayerBackup script](https://github.com/shupershuff/D2rSinglePlayerBackup).<br>
 ![image](https://github.com/user-attachments/assets/16d35492-e644-40a7-b2fb-f9e0a106b84f)
-
 
 # Setup Steps
 This has a much easier setup than Diablo2RLoader as this is an offline script and as such doesn't need any accounts added.<br>
@@ -72,7 +70,6 @@ Some of the above options can be set within the scripts option menu also. Make s
 4. This will perform the first time setup to compile settext.exe, populate characters.csv and create a shortcut on your desktop.
 5. All of your characters will be shown by default. You can choose to hide accounts in bulk by editing characters.csv (make sure to close script first) or one by one by using the options menu:
 ![image](https://github.com/user-attachments/assets/ec4fa3bc-feeb-450d-9d4f-aed22b9400c2)<br>
-<br>
 
 Tip: If you struggle editing CSV files in text editors like notepad or notepad++, try editing in Excel or [ModernCSV](https://www.moderncsv.com/) (free CSV app).
 
@@ -112,7 +109,7 @@ Mostly credits from [D2rLoader](https://github.com/shupershuff/Diablo2RLoader)
 - Thanks to Sir-Wilhelm for tidying up Handle killer and providing code for resizing and relocating windows.
 - ChatGPT for helping with regex patterns.
 - Google.com for everything else.
-- Double Brown
+- Double Brown:
 ![image](https://github.com/user-attachments/assets/7e784a03-2875-456e-aab7-0c27576772e0)<br><br>
 
 Proudly made in NZ<br>
