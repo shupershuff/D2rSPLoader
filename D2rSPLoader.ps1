@@ -14,6 +14,8 @@ Changes since 1.0.0 (next version edits):
 - Removed "multibox" from welcome banner.
 - Fixed typo in config.xml
 - Script now gets 'Saved Games' folder path from registry rather than assuming it's in 'C:\Users\Username\Saved Games'
+- Error handling for missing files where user is using '-direct -txt' launch arguments.
+- Fixed a few issues with mod handling for disable/enable videos.
 
 1.0.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
@@ -50,8 +52,6 @@ do {
 $Script:X = [char]0x1b #escape character for ANSI text colors
 $ProgressPreference = "SilentlyContinue"
 $Script:WorkingDirectory = ((Get-ChildItem -Path $PSScriptRoot)[0].fullname).substring(0,((Get-ChildItem -Path $PSScriptRoot)[0].fullname).lastindexof('\')) #Set Current Directory path.
-$Script:CharacterSavePath = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" -name "{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}")."{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}" #Get Saved Games folder from registry rather than assume it's in C:\Users\Username\Saved Games
-$Script:SettingsProfilePath = $Script:CharacterSavePath
 $Script:StartTime = Get-Date #Used for elapsed time. Is reset when script refreshes.
 $Script:LastBackup = $Script:StartTime.addminutes(-60)
 $Script:MOO = "%%%"
@@ -66,6 +66,14 @@ $Script:AllowedKeyList += @(96,97,98,99,100,101,102,103,104,105) #0 to 9 on nump
 $Script:AllowedKeyList += @(65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90) # A to Z
 $Script:MenuOptions = @(65,66,67,68,71,73,74,79,82,83,84,88) #a, b, c, d, g, i, j, o, r, s, t and x. Used to detect singular valid entries where script can have two characters entered.
 $EnterKey = 13
+try {
+	$Script:WindowsSavedGameLocation = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" -name "{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}")."{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}" + "\Diablo II Resurrected\" #Get Saved Games folder from registry rather than assume it's in C:\Users\Username\Saved Games
+}
+Catch {
+	$Script:WindowsSavedGameLocation = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
+}
+$Script:CharacterSavePath = $Script:WindowsSavedGameLocation
+$Script:SettingsProfilePath = $Script:WindowsSavedGameLocation
 Function RemoveMaximiseButton { # I'm removing the maximise button on the script as sometimes I misclick maximise instead of minimise and it annoys me. Copied this straight out of ChatGPT lol.
 	Add-Type @"
 		using System;
@@ -690,16 +698,16 @@ Function DisableVideos {
 					if ($ShouldUpdate -eq "y"){	
 						if (-not (Test-Path "$ModPath\act2")){
 							Write-Debug " Creating folders required for disabling D2r videos..."
-							New-Item -ItemType Directory -Path $ModPath -ErrorAction stop | Out-Null
-							New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction stop | Out-Null
-							New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction stop | Out-Null
-							New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction stop | Out-Null
-							New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction stop | Out-Null
+							New-Item -ItemType Directory -Path $ModPath -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction SilentlyContinue | Out-Null
 							Write-Debug " Created folder: $ModPath"
-							start-sleep -milliseconds 213
+							start-sleep -milliseconds 123
 						}
 						foreach ($File in $VideoFiles){
-							New-Item -ItemType File -Path "$ModPath\$File" | Out-Null
+							New-Item -ItemType File -Path "$ModPath\$File" -ErrorAction SilentlyContinue | Out-Null
 						}
 						Write-Debug " Created dummy D2r videos."
 						start-sleep -milliseconds 222
@@ -709,20 +717,44 @@ Function DisableVideos {
 						start-sleep -milliseconds 256
 					}
 				}
+				else {# If blizzardlogos.webm does exist, lets confirm that all videos are indeed 0 bytes and if not, make it so.
+					foreach ($File in $VideoFiles){
+						try {
+							if ((Get-Item "$ModPath\$File" -ErrorAction Stop).Length -gt 0){
+								$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+								Rename-Item -Path  "$ModPath\$File" -NewName "$FileName.backup" -ErrorAction SilentlyContinue | Out-Null
+								New-Item -ItemType File -Path "$ModPath\$File" -ErrorAction SilentlyContinue | Out-Null
+							}
+						}
+						Catch {
+							Write-Debug " Creating folders required for disabling D2r videos..."
+							New-Item -ItemType Directory -Path $ModPath -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act2" -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act3" -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act4" -ErrorAction SilentlyContinue | Out-Null
+							New-Item -ItemType Directory -Path "$ModPath\act5" -ErrorAction SilentlyContinue | Out-Null
+							Write-Debug " Created folder: $ModPath"
+							New-Item -ItemType File -Path "$ModPath\$File" -ErrorAction SilentlyContinue | Out-Null
+							write-host "derp $file"
+						}
+					}
+				}
 			}
 		}
 		elseif ($Config.CustomLaunchArguments -match "-direct -txt"){ #if user has extracted files.
 			foreach ($File in $VideoFiles){
-				if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -gt 0){ #check if file is larger than 0 bytes and if so backup original file and replace with 0 byte file.
-					$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
-					try { #try renaming file. If it can't be renamed, it must already exist, therefore delete the video file.
-						Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File" -NewName "$FileName.backup" -erroraction stop | Out-Null
+				if (Test-Path "$($Config.GamePath)\Data\hd\global\video\$File"){
+					if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -gt 0){ #check if file is larger than 0 bytes and if so backup original file and replace with 0 byte file.
+						$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+						try { #try renaming file. If it can't be renamed, it must already exist, therefore delete the video file.
+							Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File" -NewName "$FileName.backup" -ErrorAction Stop | Out-Null
+						}
+						Catch {
+							Remove-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File" -ErrorAction SilentlyContinue | Out-Null
+						}
 					}
-					Catch {
-						Remove-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File"
-					}
-					New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\$File" | Out-Null
 				}
+				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\$File" | Out-Null
 			}
 		}
 		else { #if user has not extracted files, launch with mod
@@ -756,16 +788,18 @@ Function DisableVideos {
 		$Script:StartWithDisableVideosMod = $False
 		if ($Config.CustomLaunchArguments -match "-direct -txt"){ #if user has extracted files.
 			foreach ($File in $VideoFiles){
-				if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -eq 0){ #check if file is l0 bytes and if so remove 0 byte file and restore original file.
-					$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
-					Remove-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File"
-					write-debug "removed $($Config.GamePath)\Data\hd\global\video\$File"
-					Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null
-					write-debug "renamed $($Config.GamePath)\Data\hd\global\video\$File.backup"
+				if (Test-Path "$($Config.GamePath)\Data\hd\global\video\$File"){
+					if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File" -ErrorAction Stop).Length -eq 0){ #check if file is l0 bytes and if so remove 0 byte file and restore original file.
+						$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+						Remove-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File"
+						write-debug "removed $($Config.GamePath)\Data\hd\global\video\$File"
+						Rename-Item -Path "$($Config.GamePath)\Data\hd\global\video\$File.backup" -NewName "$FileName" -erroraction SilentlyContinue | Out-Null #attempt to retrieve original file if it's there.
+						write-debug "renamed $($Config.GamePath)\Data\hd\global\video\$File.backup"
+					}
 				}
 			}
 		}
-		elseif ($Config.CustomLaunchArguments -match "mod"){ #if user has extracted files.
+		elseif ($Config.CustomLaunchArguments -match "mod"){ #if user is using a mod.
 			$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
 			if ($Config.CustomLaunchArguments -match $pattern){
 				$ModName = $matches[1]	
@@ -774,19 +808,26 @@ Function DisableVideos {
 					$Replace = $True
 				}
 				foreach ($File in $VideoFiles){
-					if ((Get-Item "$ModPath\$File").Length -eq 0){ #check if file is l0 bytes and if so remove 0 byte file and restore original file.
-						$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
-						if ($Replace = $True){
-							Rename-Item -Path "$ModPath\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null
-						}
-						Else {
-							Remove-Item -Path "$ModPath\$File"
-							if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -eq 0){#check to see if we can rely on original game files. If this is true, original files are empty and can't be used
+					if (Test-Path "$ModPath\$File"){
+						if ((Get-Item "$ModPath\$File").Length -eq 0){ #check if file is 0 bytes and if so remove 0 byte file and restore original file.
+							$FileName = $File -replace "^[^\\]+\\", "" #remove "act2\" from string if needed.
+							if ($Replace = $True){
 								try {
 									Rename-Item -Path "$ModPath\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null #Attempt to see if there's a backup we can restore from in the mod folder. Unlikely.
 								}
 								Catch {
-									formatfunction -IsError -indent 2 "Couldn't restore $($Config.GamePath)\Data\hd\global\video\$File.`nYou may need to repair your game from the Battlenet client."
+									Remove-Item -Path "$ModPath\$File"
+								}
+							}
+							Else {
+								Remove-Item -Path "$ModPath\$File"
+								if ((Get-Item "$($Config.GamePath)\Data\hd\global\video\$File").Length -eq 0){#check to see if we can rely on original game files. If this is true, original files are empty and can't be used
+									try {
+										Rename-Item -Path "$ModPath\$File.backup" -NewName "$FileName" -erroraction stop | Out-Null #Attempt to see if there's a backup we can restore from in the mod folder. Unlikely.
+									}
+									Catch {
+										formatfunction -IsError -indent 2 "Couldn't restore $($Config.GamePath)\Data\hd\global\video\$File.`nYou may need to repair your game from the Battlenet client."
+									}
 								}
 							}
 						}
@@ -882,12 +923,12 @@ Function CloudBackupSetup {
 	write-host
 	formatfunction -indents 1 "This will ensure your game files are saved in a cloud sync'd location."
 	write-host
-	$DefaultSaveGamePath = ($Script:CharacterSavePath + "\Diablo II Resurrected")
+	$DefaultSaveGamePath = $Script:WindowsSavedGameLocation
 	$OneDriveSavePath = ("C:\Users\" + $env:username + "\OneDrive\")
 	$DropboxSavePath = ("C:\Users\" + $env:username + "\Dropbox\")
 	$GoogleDriveSavePath =  ("C:\Users\" + $env:username + "\My Drive\")
 	###Check if junction has already been created ###
-	$SavedGamesFolder = $Script:CharacterSavePath
+	$SavedGamesFolder = $Script:WindowsSavedGameLocation.replace("\Diablo II Resurrected","")
 	# Run cmd's dir command to get junction info, ensuring the path is quoted
 	$junctionInfo = cmd /c "dir `"$SavedGamesFolder`" /AL"
 	# Define a regex pattern to match the "Diablo II Resurrected" junction and its target path
@@ -977,8 +1018,8 @@ Function CloudBackupSetup {
 }
 Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to rewrite to account for folder exclusions https://github.com/shupershuff/FolderBackup
 	Write-Host "  Backing up save games, please wait..." -foregroundcolor yellow
-	CheckForModSavePath
-	$PathToBackup = $Script:CharacterSavePath
+	CheckForModSavePath -CheckOnly
+	$PathToBackup = $Script:WindowsSavedGameLocation
 	# Define the folders to exclude
 	$ExcludedFolders = @("mods", "backup", "backups")
 	# Initialize results array as a System.Collections.ArrayList for better performance
@@ -1409,6 +1450,7 @@ Function CheckForModSavePath {
 		$SettingsOrCharString = "character"
 		$SettingsOrCharString2 = "character saves"
 	}
+	$Script:CharacterSavePath = $Script:WindowsSavedGameLocation
 	if ($Config.CustomLaunchArguments -match "-mod"){
 		$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
 		if ($Config.CustomLaunchArguments -match $pattern){
@@ -1431,7 +1473,7 @@ Function CheckForModSavePath {
 					Write-Verbose " No Custom Save Path Specified for this mod."
 				}
 				ElseIf ($Modinfo -ne "../"){
-					$Script:CharacterSavePath += "mods\$Modinfo\"
+					$Script:CharacterSavePath = $Script:CharacterSavePath + "mods\$Modinfo\"
 					$Script:SettingsProfilePath = $Script:CharacterSavePath
 					if ($CheckOnly -ne $True){
 						if (-not (Test-Path $CharacterSavePath)){
@@ -1452,7 +1494,9 @@ Function CheckForModSavePath {
 			}
 		}
 		else {
-			Write-Host "  Couldn't detect Mod name. Standard path to be used for $SettingsOrCharString2." -ForegroundColor Red
+			if ($CheckOnly -ne $True){
+				Write-Host "  Couldn't detect Mod name. Standard path to be used for $SettingsOrCharString2." -ForegroundColor Red
+			}
 		}
 	}	
 }
@@ -1585,7 +1629,7 @@ Function Options {
 					}
 					$NewValue = ($customLaunchArguments.InnerText -replace "  ", " ").trim()
 				}
-				ElseIf ($Option -eq "8"){
+				ElseIf ($Option -eq "8" -or $Option -eq "b"){
 					if ($NewOptionValue -eq "2"){
 						if (LocalBackup -eq "Skipped"){
 							start-sleep -milliseconds 2800 #If it was skipped allow short time for the message to appear before refreshing screen
@@ -1800,7 +1844,7 @@ Function Options {
 		-Description "This enables you to disable intro videos and videos in between each act." `
 		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`n"
 	}
-	ElseIf ($Option -eq "8"){#Backup
+	ElseIf ($Option -eq "8" -or $Option -eq "b"){#Backup
 		If ($Script:Config.AutoBackup -eq "False"){
 			$Options = @{"1" = "True";"2" = "PlaceholderValue Only :)";"3" = "PlaceholderValue Only :)"}
 			$OptionsSubText = "enable"
@@ -1822,8 +1866,8 @@ Function Options {
 			$Optionkey = ($iterate + 1).ToString()  # Create keys as "1", "2", etc.
 			$OptionsList[$Optionkey] = $NonEmptyDirectories[$iterate].Name
 		}
-		Foreach ($Option in $OptionsList.GetEnumerator() | Sort-Object Key){
-			write-host "   Choose '$X[38;2;255;165;000;22m$($Option.key)$X[0m' to switch to '$($Option.Value)' character set."
+		Foreach ($ListOption in $OptionsList.GetEnumerator() | Sort-Object Key){
+			write-host "   Choose '$X[38;2;255;165;000;22m$($ListOption.key)$X[0m' to switch to '$($ListOption.Value)' character set."
 		}
 		do {
 			Write-Host "`n   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
@@ -2374,8 +2418,6 @@ Function Processing {
 				}
 			} until ($SettingsChoice.tostring() -in $SettingsFileOptions.id + $SettingsCancelOption + "Esc")
 			if ($SettingsChoice -ne "c" -and $SettingsChoice -ne "Esc" -and $SettingsChoice -ne "1"){
-				$SettingsChoice 
-				pause
 				$SettingsToLoadFrom = $SettingsFileOptions | where-object {$_.id -eq $SettingsChoice.tostring()}
 				try {
 					Copy-item ($SettingsProfilePath + $SettingsToLoadFrom.FileName) -Destination $SettingsJSON #-ErrorAction Stop #overwrite settings.json with settings<Name>.json (<Name> being the name of the config user selects). This means any changes to settings in settings.json will be lost the next time an account is loaded by the script.
