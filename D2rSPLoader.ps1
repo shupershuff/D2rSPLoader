@@ -13,13 +13,12 @@ Changes since 1.0.0 (next version edits):
 - Changed Skipped backup message
 - Removed "multibox" from welcome banner.
 - Fixed typo in config.xml
-- Added mitigation if 'Saved Games' isn't in default location
+- Script now gets 'Saved Games' folder path from registry rather than assuming it's in 'C:\Users\Username\Saved Games'
 
 1.0.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
 Fix whatever I broke or poorly implemented in the last update :)
 #>
-
 
 $CurrentVersion = "1.0.1"
 ###########################################################################################################################################
@@ -1304,7 +1303,7 @@ Function QuoteRoll {#stupid thing to draw a random quote but also draw a random 
 }
 Function Inventory {#Info screen
 	Clear-Host
-	Write-Host "`n          Stay a while and listen! Here's your D2r Loader info.`n`n" -foregroundcolor yellow
+	Write-Host "`n       Stay a while and listen! Here's your D2r SP Launcher info.`n`n" -foregroundcolor yellow
 	Write-Host "  $X[38;2;255;255;255;4mNote:$X[0m D2r Playtime is based on the time the script has been running"
 	Write-Host "  whilst D2r is running. In other words, if you use this script when you're"
 	Write-Host "  playing the game, it will give you a reasonable idea of the total time"
@@ -2133,7 +2132,7 @@ Function GetCharacters {
 Function Menu {
 	Clear-Host
 	if ($Script:ScriptHasBeenRun -ne $true){
-		Write-Host ("  You have quite a treasure there in that Horadric SP Launcher v" + $Currentversion)
+		Write-Host ("     You have quite a treasure there in that Horadric SP Launcher v" + $Currentversion)
 	}
 	Notifications -check $True
 	BannerLogo
