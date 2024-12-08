@@ -9,12 +9,19 @@ Purpose:
 	Script will track character details from CSV.
 Instructions: See GitHub readme https://github.com/shupershuff/D2rSPLoader
 
-1.0+ to do list
+Changes since 1.0.0 (next version edits):
+- Changed Skipped backup message
+- Removed "multibox" from welcome banner.
+- Fixed typo in config.xml
+- Added mitigation if 'Saved Games' isn't in default location
+
+1.0.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "1.0.0"
+
+$CurrentVersion = "1.0.1"
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -44,6 +51,8 @@ do {
 $Script:X = [char]0x1b #escape character for ANSI text colors
 $ProgressPreference = "SilentlyContinue"
 $Script:WorkingDirectory = ((Get-ChildItem -Path $PSScriptRoot)[0].fullname).substring(0,((Get-ChildItem -Path $PSScriptRoot)[0].fullname).lastindexof('\')) #Set Current Directory path.
+$Script:CharacterSavePath = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" -name "{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}")."{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}" #Get Saved Games folder from registry rather than assume it's in C:\Users\Username\Saved Games
+$Script:SettingsProfilePath = $Script:CharacterSavePath
 $Script:StartTime = Get-Date #Used for elapsed time. Is reset when script refreshes.
 $Script:LastBackup = $Script:StartTime.addminutes(-60)
 $Script:MOO = "%%%"
@@ -874,12 +883,12 @@ Function CloudBackupSetup {
 	write-host
 	formatfunction -indents 1 "This will ensure your game files are saved in a cloud sync'd location."
 	write-host
-	$DefaultSaveGamePath = ("C:\Users\" + $env:username + "\Saved Games\Diablo II Resurrected")
+	$DefaultSaveGamePath = ($Script:CharacterSavePath + "\Diablo II Resurrected")
 	$OneDriveSavePath = ("C:\Users\" + $env:username + "\OneDrive\")
 	$DropboxSavePath = ("C:\Users\" + $env:username + "\Dropbox\")
 	$GoogleDriveSavePath =  ("C:\Users\" + $env:username + "\My Drive\")
 	###Check if junction has already been created ###
-	$SavedGamesFolder = ("C:\Users\" + $env:username + "\Saved Games")
+	$SavedGamesFolder = $Script:CharacterSavePath
 	# Run cmd's dir command to get junction info, ensuring the path is quoted
 	$junctionInfo = cmd /c "dir `"$SavedGamesFolder`" /AL"
 	# Define a regex pattern to match the "Diablo II Resurrected" junction and its target path
@@ -1052,7 +1061,7 @@ Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to 
 	$PreviousHash = if (Test-Path $HashFilePath) { Get-Content $HashFilePath } else { "" }
 	$CurrentHash = Get-FolderHash -folderPath $PathToBackup
 	if ($CurrentHash -eq $PreviousHash) {
-		formatfunction -IsSuccess -indent 1 "Backup: Folder has not changed since the last backup. No backup needs to be done."	
+		formatfunction -IsSuccess -indent 1 "Backup: Characters have not changed since the last backup. Backup skipped."	
 		return "Skipped"
 	}
 	$destinationPath = Join-Path -Path $PathToSaveBackup -ChildPath "$year\$month\$day\$hour"
@@ -1401,8 +1410,6 @@ Function CheckForModSavePath {
 		$SettingsOrCharString = "character"
 		$SettingsOrCharString2 = "character saves"
 	}
-	$Script:CharacterSavePath = ("C:\Users\" + $Env:UserName + "\Saved Games\Diablo II Resurrected\")
-	$Script:SettingsProfilePath = $Script:CharacterSavePath
 	if ($Config.CustomLaunchArguments -match "-mod"){
 		$pattern = "-mod\s+(\S+)" #pattern to find the first word after -mod
 		if ($Config.CustomLaunchArguments -match $pattern){
@@ -2126,7 +2133,7 @@ Function GetCharacters {
 Function Menu {
 	Clear-Host
 	if ($Script:ScriptHasBeenRun -ne $true){
-		Write-Host ("  You have quite a treasure there in that Horadric multibox script v" + $Currentversion)
+		Write-Host ("  You have quite a treasure there in that Horadric SP Launcher v" + $Currentversion)
 	}
 	Notifications -check $True
 	BannerLogo
@@ -2394,7 +2401,7 @@ Function Processing {
 		}
 		#Start Game
 		KillHandle | out-null
-		$process = Start-Process "$Gamepath\D2R.exe" -ArgumentList "$arguments" -PassThru 
+		$process = Start-Process "$Gamepath\D2R.exe" -ArgumentList "$arguments --instanceSinglePlayer" -PassThru 
 		Start-Sleep -milliseconds 1500 #give D2r a bit of a chance to start up before trying to kill handle
 		#Close the 'Check for other instances' handle
 		Write-Host " Attempting to close `"Check for other instances`" handle..."
