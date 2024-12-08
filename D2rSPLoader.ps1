@@ -9,20 +9,21 @@ Purpose:
 	Script will track character details from CSV.
 Instructions: See GitHub readme https://github.com/shupershuff/D2rSPLoader
 
-Changes since 1.0.0 (next version edits):
-- Changed Skipped backup message
+Changes since 1.1.0 (next version edits):
+- Changed Skipped backup message.
 - Removed "multibox" from welcome banner.
-- Fixed typo in config.xml
-- Script now gets 'Saved Games' folder path from registry rather than assuming it's in 'C:\Users\Username\Saved Games'
+- Fixed typo in config.xml.
+- Script now gets 'Saved Games' folder path from registry rather than assuming it's in 'C:\Users\Username\Saved Games'.
 - Error handling for missing files where user is using '-direct -txt' launch arguments.
 - Fixed a few issues with mod handling for disable/enable videos.
+- Made it so if mods are being used, the mods folder that contains characters and settings is also backed up.
 
 1.0.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "1.0.1"
+$CurrentVersion = "1.1.0"
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -487,27 +488,27 @@ Function CheckForUpdates {
 	}
 	#Update (or replace missing) SetTextV2.bas file. This is an newer version of SetText (built by me and ChatGPT) that allows windows to be closed by process ID.
 	if ((Test-Path -Path ($workingdirectory + '\SetText\SetTextv2.bas')) -ne $True){#if SetTextv2.bas doesn't exist, download it.
-			try {
-				New-Item -ItemType Directory -Path ($Script:WorkingDirectory + "\UpdateTemp\") -ErrorAction stop | Out-Null #create temporary folder to download zip to and extract
-			}
-			Catch {#if folder already exists for whatever reason.
-				Remove-Item -Path ($Script:WorkingDirectory + "\UpdateTemp\") -Recurse -Force
-				New-Item -ItemType Directory -Path ($Script:WorkingDirectory + "\UpdateTemp\") | Out-Null #create temporary folder to download zip to and extract
-			}
-			$Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/shupershuff/D2rSPLoader/releases"
-			$ReleaseInfo = ($Releases | Sort-Object id -desc)[0] #find release with the highest ID.
-			$ZipURL = $ReleaseInfo.zipball_url #get zip download URL
-			$ZipPath = ($WorkingDirectory + "\UpdateTemp\D2rSPLoader_" + $ReleaseInfo.tag_name + "_temp.zip")
-			Invoke-WebRequest -Uri $ZipURL -OutFile $ZipPath
-			if ($Null -ne $releaseinfo.assets.browser_download_url){#Check If I didn't forget to make a version.zip file and if so download it. This is purely so I can get an idea of how many people are using the script or how many people have updated. I have to do it this way as downloading the source zip file doesn't count as a download in github and won't be tracked.
-				Invoke-WebRequest -Uri $releaseinfo.assets.browser_download_url -OutFile $null | out-null #identify the latest file only.
-			}
-			$ExtractPath = ($Script:WorkingDirectory + "\UpdateTemp\")
-			Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
-			$FolderPath = Get-ChildItem -Path $ExtractPath -Directory -Filter "shupershuff*" | Select-Object -ExpandProperty FullName
-			Copy-Item -Path ($FolderPath + "\SetText\SetTextv2.bas") -Destination ($Script:WorkingDirectory + "\SetText\SetTextv2.bas")
-			Write-Host "  SetTextV2.bas was missing and was downloaded."
-			Remove-Item -Path ($Script:WorkingDirectory + "\UpdateTemp\") -Recurse -Force #delete update temporary folder
+		try {
+			New-Item -ItemType Directory -Path ($Script:WorkingDirectory + "\UpdateTemp\") -ErrorAction stop | Out-Null #create temporary folder to download zip to and extract
+		}
+		Catch {#if folder already exists for whatever reason.
+			Remove-Item -Path ($Script:WorkingDirectory + "\UpdateTemp\") -Recurse -Force
+			New-Item -ItemType Directory -Path ($Script:WorkingDirectory + "\UpdateTemp\") | Out-Null #create temporary folder to download zip to and extract
+		}
+		$Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/shupershuff/D2rSPLoader/releases"
+		$ReleaseInfo = ($Releases | Sort-Object id -desc)[0] #find release with the highest ID.
+		$ZipURL = $ReleaseInfo.zipball_url #get zip download URL
+		$ZipPath = ($WorkingDirectory + "\UpdateTemp\D2rSPLoader_" + $ReleaseInfo.tag_name + "_temp.zip")
+		Invoke-WebRequest -Uri $ZipURL -OutFile $ZipPath
+		if ($Null -ne $releaseinfo.assets.browser_download_url){#Check If I didn't forget to make a version.zip file and if so download it. This is purely so I can get an idea of how many people are using the script or how many people have updated. I have to do it this way as downloading the source zip file doesn't count as a download in github and won't be tracked.
+			Invoke-WebRequest -Uri $releaseinfo.assets.browser_download_url -OutFile $null | out-null #identify the latest file only.
+		}
+		$ExtractPath = ($Script:WorkingDirectory + "\UpdateTemp\")
+		Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
+		$FolderPath = Get-ChildItem -Path $ExtractPath -Directory -Filter "shupershuff*" | Select-Object -ExpandProperty FullName
+		Copy-Item -Path ($FolderPath + "\SetText\SetTextv2.bas") -Destination ($Script:WorkingDirectory + "\SetText\SetTextv2.bas")
+		Write-Host "  SetTextV2.bas was missing and was downloaded."
+		Remove-Item -Path ($Script:WorkingDirectory + "\UpdateTemp\") -Recurse -Force #delete update temporary folder
 	}
 }
 Function ImportXML { #Import Config XML
@@ -1021,7 +1022,10 @@ Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to 
 	CheckForModSavePath -CheckOnly
 	$PathToBackup = $Script:WindowsSavedGameLocation
 	# Define the folders to exclude
-	$ExcludedFolders = @("mods", "backup", "backups")
+	$ExcludedFolders = @("backup", "backups")
+	if ($Config.CustomLaunchArguments -notmatch "-mod"){
+		$ExcludedFolders = $ExcludedFolders + "mods"
+	}
 	# Initialize results array as a System.Collections.ArrayList for better performance
 	$Results = [System.Collections.ArrayList]@()
 	# Function to recursively collect files and directories while excluding specific folders
@@ -1060,8 +1064,6 @@ Function LocalBackup {# Pillaged my own script but I'm lazy and used chatgpt to 
 	# Helper function to calculate a folder hash. Prevents backup from rerunning and wasting time, storage and IO if no files have changed.
 	Function Get-FolderHash {
 		param ([string]$folderPath)
-		# Initialize excluded folders (can be adjusted based on your needs)
-		$ExcludedFolders = @("mods", "backup", "backups")
 		# Get all files recursively, ensuring excluded folders are excluded
 		$files = Get-ChildItem -Path $folderPath -Recurse -Force | Where-Object {
 			# Check if any part of the full path is in the excluded list
