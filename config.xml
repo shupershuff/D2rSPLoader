@@ -1,5 +1,5 @@
 <!--D2Loader Config-->
-<D2SPLLoaderConfig>
+<D2SPLoaderConfig>
 	<!--Default Gamepath. The below is the default install path, change this if you've installed somewhere different.-->
 	<GamePath>C:\Program Files (x86)\Diablo II Resurrected</GamePath>
 	
