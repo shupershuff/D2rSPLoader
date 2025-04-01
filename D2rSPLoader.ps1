@@ -9,21 +9,17 @@ Purpose:
 	Script will track character details from CSV.
 Instructions: See GitHub readme https://github.com/shupershuff/D2rSPLoader
 
-Changes since 1.1.0 (next version edits):
-- Changed Skipped backup message.
-- Removed "multibox" from welcome banner.
-- Fixed typo in config.xml.
-- Script now gets 'Saved Games' folder path from registry rather than assuming it's in 'C:\Users\Username\Saved Games'.
-- Error handling for missing files where user is using '-direct -txt' launch arguments.
-- Fixed a few issues with mod handling for disable/enable videos.
-- Made it so if mods are being used, the mods folder that contains characters and settings is also backed up.
+Changes since 1.1.1 (next version edits):
+- Fixed issue with playersx option menu allowing invalid input.
+- Fix issue with intro video remover.
+- Fixed Typos.
 
-1.0.0+ to do list
+1.1.0+ to do list
 Couldn't write :) in release notes without it adding a new line, some minor issue with formatfunction regex
 Fix whatever I broke or poorly implemented in the last update :)
 #>
 
-$CurrentVersion = "1.1.0"
+$CurrentVersion = "1.1.1"
 ###########################################################################################################################################
 # Script itself
 ###########################################################################################################################################
@@ -482,7 +478,7 @@ Function CheckForUpdates {
 			$CurrentStats | Export-Csv -Path "$Script:WorkingDirectory\Stats.csv" -NoTypeInformation #update stats.csv with the new time played.
 		}
 		Catch {
-			Write-Host "`n Couldn't check for updates. GitHub API limit may have been reached..." -foregroundcolor Yellow
+			formatfunction -indent 1 -iswarning -text "`nCouldn't check for updates. This could be due to you being offline or GitHub API limit may have been reached..."
 			Start-Sleep -milliseconds 3500
 		}
 	}
@@ -755,7 +751,9 @@ Function DisableVideos {
 						}
 					}
 				}
-				New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\$File" | Out-Null
+				if (!(Test-Path "$($Config.GamePath)\Data\hd\global\video\$File")){
+					New-Item -ItemType File -Path "$($Config.GamePath)\Data\hd\global\video\$File" | Out-Null
+				}
 			}
 		}
 		else { #if user has not extracted files, launch with mod
@@ -943,8 +941,8 @@ Function CloudBackupSetup {
 		formatfunction -indents 1 -IsWarning -text "This is currently pointing to: '$JunctionTarget'"
 		Write-host
 		Write-host "  If you're happy with game files already being saved to this cloud folder," -foregroundcolor yellow
-		Write-host "  choose cancel ($X[38;2;255;165;000;22mc$X[0m" -nonewline -foregroundcolor yellow; write-host ")" -foregroundcolor yellow
-		formatfunction -indents 1 -IsWarning -text "Otherwise, continue with the script to point it to the new cloud location."
+		Write-host "  choose cancel ($X[38;2;255;165;000;22mc$X[0m" -nonewline -foregroundcolor yellow; write-host ")." -foregroundcolor yellow
+		formatfunction -indents 1 -IsWarning -text "Otherwise, continue on to point files to a new cloud sync'd folder."
 		Write-Host "`n  Press '$X[38;2;255;165;000;22mc$X[0m' to cancel or any other key to proceed: "  -nonewline
 		if (readkey -eq "c"){
 			return $False
@@ -1573,16 +1571,18 @@ Function Options {
 				}
 			}
 			Else {
-				Write-Host "   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
 				$AcceptableOptions = $OptionsList.keys
-				$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27).tostring()
-				$NewValue = $($OptionsList[$NewOptionValue])
-				if ($NewOptionValue -eq "c"){
-					break
-				}
-				if ($NewOptionValue -notin $AcceptableOptions + "Esc"){
-					Write-Host "   Invalid Input. Please enter one of the options above.`n" -foregroundcolor red
-				}
+				do {
+					Write-Host "   Enter " -nonewline;CommaSeparatedList -NoOr ($OptionsList.keys | sort-object); Write-Host " or '$X[38;2;255;165;000;22mc$X[0m' to cancel: " -nonewline
+					$NewOptionValue = (ReadKeyTimeout "" $MenuRefreshRate "c" -AdditionalAllowedKeys 27).tostring()
+					$NewValue = $($OptionsList[$NewOptionValue])
+					if ($NewOptionValue -eq "c"){
+						break
+					}
+					if ($NewOptionValue -notin $AcceptableOptions + "Esc"){
+							Write-Host "   Invalid Input. Please enter one of the options above.`n" -foregroundcolor red
+					}
+				} until ($NewOptionValue -in $AcceptableOptions)
 				if ($Option -in @("1","2","3","4")){# if option is for Changing custom launch parameters, we need a sub option to obtain seed number.
 					$customLaunchArguments = $config.SelectSingleNode("//CustomLaunchArguments")	
 					if ($Option -in @("1","2")){
@@ -1642,7 +1642,7 @@ Function Options {
 						if (CloudBackupSetup -eq $True){
 							PressTheAnyKey
 						}
-						return $false
+						return $False
 					}
 				}
 			}
@@ -1702,7 +1702,7 @@ Function Options {
 			$CurrentState = "$($Script:Config.CustomLaunchArguments)"
 		}
 		$XMLChanged = OptionSubMenu -ConfigName "CustomLaunchArguments" -OptionsList $Options -Current $CurrentState `
-		-Description "Choose to $OptionsSubText launching with the game with /playersX already set. Saves you having to type out the same thing at launch :)" `
+		-Description "Choose to $OptionsSubText launching with the game with /playersX already set.`nSaves you having to type out the same thing at launch :)`n`nPlease note that with how the game works, if this option is enabled it will reset the player count to what's specified here each time you make a new game." `
 		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText launching with /playersX.`n$ExtraOptionsText"
 	}
 	If ($Option -eq "3"){ #enablerespec - SinglePlayerLaunch Options to add/remove from custom launch arguments
@@ -1746,7 +1746,7 @@ Function Options {
 		if (($Script:CharactersCSV.count) -ge 10){$IDIndent = " "}
 		if (($Script:CharactersCSV.count) -ge 100){$IDIndent = "  "}
 		
-		formatfunction -indent 1 -text "On this screen you can toggle which characters you want to have shown on the scripts main display screen.`nYou can also edit this directly (better for bulk editgs) by editing the characters.csv file."
+		formatfunction -indent 1 -text "On this screen you can toggle which characters you want to have shown on the scripts main display screen.`nYou can also edit this directly (better for bulk edits) by editing the characters.csv file."
 		write-host "`n  $X[4m#$X[0m $IDIndent  $X[4mCharacter Name$X[0m  $HeaderIndent $X[4mShow/Hide$X[0m   |   $X[4m#$X[0m $IDIndent  $X[4mCharacter Name$X[0m  $HeaderIndent $X[4mShow/Hide$X[0m"
 		$Counter = 0
 		$DoCount = 0
@@ -1858,8 +1858,8 @@ Function Options {
 			$CurrentState = "Enabled"
 		}
 		$XMLChanged = OptionSubMenu -ConfigName "AutoBackup" -OptionsList $Options -Current $CurrentState `
-		-Description "This enables you to disable intro videos and videos in between each act." `
-		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText`nChoose '$X[38;2;255;165;000;22m2$X[0m' to make a manual backup`nChoose '$X[38;2;255;165;000;22m3$X[0m' to make Cloud Backup Setup`n"		
+		-Description "Enabling Autobackup will make a backup of your character files every 30minutes.`n`nYou can also configure Cloud Sync'd backups from this menu for popular Cloud file sync providers.`nYou will of course need to have already setup a cloud sync app for this to work." `
+		-OptionsText "Choose '$X[38;2;255;165;000;22m1$X[0m' to $OptionsSubText AutoBackup`nChoose '$X[38;2;255;165;000;22m2$X[0m' to make a manual backup`nChoose '$X[38;2;255;165;000;22m3$X[0m' to setup cloud based backups`n"		
 	}
 	ElseIf ($Option -eq "9" -and $null -ne $D2rDirectories){ #Swap Character Packs. Specifically swap .d2s files, other files can be used by online chars.
 		$CurrentD2rSaveFiles = Get-ChildItem -Path "$CharacterSavePath" -Filter "*.d2s" -File
@@ -2330,7 +2330,7 @@ Function ChooseAccount {
 			}			
 			if ($Script:Config.ManualSettingSwitcherEnabled -eq $true){
 				$ManualSettingSwitcherOption = "s"
-				Write-Host "  '$X[38;2;255;165;000;22mr$X[0m' to Refresh, $X[38;2;255;165;000;22mo$X[0m' for config options, '$X[38;2;255;165;000;22mi$X[0m' for info"
+				Write-Host "  '$X[38;2;255;165;000;22mr$X[0m' to Refresh, $X[38;2;255;165;000;22mo$X[0m' for config options, '$X[38;2;255;165;000;22mi$X[0m' for info,"
 				Write-Host "  '$X[38;2;255;165;000;22ms$X[0m' to toggle the Manual Setting Switcher, or '$X[38;2;255;165;000;22mx$X[0m' to $X[38;2;255;000;000;22mExit$X[0m: "-nonewline
 			}
 			Else {
