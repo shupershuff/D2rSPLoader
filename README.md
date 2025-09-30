@@ -2,7 +2,7 @@
 A cutdown version of [D2rLoader](https://github.com/shupershuff/Diablo2RLoader) specifically aimed at providing features for single player.<br>
 Useful for tracking total time spent across each character on Grail :)
 <br>
-![image](https://github.com/user-attachments/assets/ab3bed8e-a493-4472-b113-48d2eb970500)<br>
+![image](https://github.com/user-attachments/assets/d5004d35-bfe3-47ee-9093-9be3f9bfea38)<br>
 
 ## Features
 **Main features**
